@@ -1,6 +1,7 @@
 #include <iostream>
 #include "DBFile.h"
 #include "test.h"
+#include "HeapFile.h"
 
 // make sure that the file path/dir information below is correct
 const char *dbfile_dir = ""; // dir where binary heap files should be stored
@@ -72,6 +73,12 @@ void test3 () {
 	}
 	cout << " selected " << counter << " recs \n";
 	dbfile.Close ();
+
+}
+void loadTest(){
+		HeapFile *h = new HeapFile();
+    	Schema mySchema ("catalog", "lineitem");
+	    h->Load(mySchema,"./lineitem.tbl");
 }
 
 int main () {
@@ -91,6 +98,7 @@ int main () {
 		cin >> tindx;
 	}
 
+	loadTest();
 	int findx = 0;
 	while (findx < 1 || findx > 7) {
 		cout << "\n select table: \n";

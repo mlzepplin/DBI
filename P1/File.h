@@ -42,6 +42,10 @@ public:
 	// empty it out
 	void EmptyItOut ();
 
+	//getter for myRecs for printing purposes
+	TwoWayList<Record>* getMyRecs();
+
+
 };
 
 
