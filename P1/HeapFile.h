@@ -14,7 +14,7 @@
 class HeapFile : public DBFile{
 
 private:
-	File *dFile;
+	File dFile;
 public:
 	HeapFile (); 
 

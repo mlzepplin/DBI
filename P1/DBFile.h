@@ -18,6 +18,7 @@ protected:
 	FILE *dbFile;
 	FILE *tblFile;
 	Page bufferPage;
+	Record *currentRecord;
 
 public:
 	DBFile (); 
