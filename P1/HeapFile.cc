@@ -39,12 +39,22 @@ int HeapFile::Open (const char *f_path) {
 }
 
 void HeapFile::MoveFirst () {
+
+    
 }
 
 int HeapFile::Close () {
 }
 
 void HeapFile::Add (Record &rec) {
+
+    //Append record to end of current page. 
+    //If there is not enough memory, write page to file, empty it out and add record
+    if (!bufferPage.Append(&rec)){
+        dFile.AddPage(&bufferPage, dFile.GetLength()); 
+        bufferPage.EmptyItOut();
+        bufferPage.Append(&rec);
+    }
 }
 
 int HeapFile::GetNext (Record &fetchme) {
