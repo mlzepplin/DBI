@@ -4,9 +4,12 @@
 #include "File.h"
 #include "Comparison.h"
 #include "ComparisonEngine.h"
+
 #include "DBFile.h"
 #include "Defs.h"
 #include "HeapFile.h"
+#include "fTypeEnum.h"
+
 
 #include <iostream>
 
