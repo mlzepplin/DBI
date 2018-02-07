@@ -1,3 +1,5 @@
+#ifndef DB_H
+#define DB_H
 #include "Record.h"
 #include "Schema.h"
 #include "DBFile.h"
@@ -25,3 +27,4 @@ public:
     virtual int GetNext (Record& fetchme) = 0;
     virtual int GetNext (Record& fetchme, CNF& cnf, Record& literal) = 0;
 };
+#endif
