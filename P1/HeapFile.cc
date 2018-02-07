@@ -44,6 +44,8 @@ void HeapFile::MoveFirst () {
 }
 
 int HeapFile::Close () {
+
+    dFile.Close();
 }
 
 void HeapFile::Add (Record &rec) {

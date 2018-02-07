@@ -7,11 +7,11 @@
 #include "File.h"
 #include "Comparison.h"
 #include "ComparisonEngine.h"
-#include "DBFile.h"
+#include "DB.h"
 
 // stub DBFile header..replace it with your own DBFile.h 
 
-class HeapFile : public DBFile{
+class HeapFile : public DB{
 
 private:
 	File dFile;
