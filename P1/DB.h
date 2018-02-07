@@ -1,6 +1,9 @@
+#ifndef DB_H
+#define DB_H
+
 #include "Record.h"
 #include "Schema.h"
-#include "DBFile.h"
+#include "fTypeEnum.h"
 
 class DB {
 
@@ -11,9 +14,7 @@ protected:
 	Record *currentRecord;
 
 public:
-    DB();
-    virtual ~DB();
-
+    
     virtual int Create (const char* fpath, fType file_type, void* startup) = 0;
     virtual int Open (const char* fpath) = 0;
     virtual int Close() = 0;
@@ -25,3 +26,5 @@ public:
     virtual int GetNext (Record& fetchme) = 0;
     virtual int GetNext (Record& fetchme, CNF& cnf, Record& literal) = 0;
 };
+
+#endif
