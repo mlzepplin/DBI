@@ -14,7 +14,11 @@ protected:
 	Record *currentRecord;
 
 public:
+<<<<<<< HEAD
     
+=======
+   
+>>>>>>> a8a10551604874fd0c4ce47254cb6f3c7d7c786e
     virtual int Create (const char* fpath, fType file_type, void* startup) = 0;
     virtual int Open (const char* fpath) = 0;
     virtual int Close() = 0;
@@ -26,5 +30,8 @@ public:
     virtual int GetNext (Record& fetchme) = 0;
     virtual int GetNext (Record& fetchme, CNF& cnf, Record& literal) = 0;
 };
+<<<<<<< HEAD
 
+=======
+>>>>>>> a8a10551604874fd0c4ce47254cb6f3c7d7c786e
 #endif
