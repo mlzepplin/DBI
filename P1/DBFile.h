@@ -29,6 +29,8 @@ public:
 	int GetNext (Record &fetchme);
 	int GetNext (Record &fetchme, CNF &cnf, Record &literal);
 
+	int initReadMode();
+
 private:
 	DB* db;
 

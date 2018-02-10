@@ -25,5 +25,7 @@ public:
     virtual void MoveFirst () = 0;
     virtual int GetNext (Record& fetchme) = 0;
     virtual int GetNext (Record& fetchme, CNF& cnf, Record& literal) = 0;
+
+    virtual int initReadMode() = 0;
 };
 #endif

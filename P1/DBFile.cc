@@ -59,3 +59,7 @@ int DBFile::GetNext (Record &fetchme) {
 int DBFile::GetNext (Record &fetchme, CNF &cnf, Record &literal) {
     return db->GetNext(fetchme, cnf, literal);
 }
+
+int DBFile::initReadMode(){
+    return db->initReadMode();
+}

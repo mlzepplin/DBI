@@ -11,7 +11,8 @@
 
 
 HeapFile::HeapFile():DB(){
-      
+    currentPageOffset=0;
+    
 }
 int HeapFile::Create (const char *fpath, void *startup){
     //zero parameter makes sure that the file is created
@@ -41,16 +42,15 @@ void HeapFile::Load (Schema &f_schema, const char *loadpath) {
           
 }
 int HeapFile::Open (const char *f_path) {
+    dFile.Open(1,(char *)f_path);
 }
 
 void HeapFile::MoveFirst () {
-  currentRecordOffsetPair.pageOffset = 0;
-  currentRecordOffsetPair.recordOffset = 0;
-    
+  currentPageOffset = 0;
+   
 }
 
 int HeapFile::Close () {
-
     dFile.Close();
 }
 
@@ -66,7 +66,32 @@ void HeapFile::Add (Record &rec) {
 }
 
 int HeapFile::GetNext (Record &fetchme) {
+    
+//    bufferPage.EmptyItOut();
+//     //fill buffer page with Current page offset
+//     dFile.GetPage(&bufferPage,currentPageOffset);
+    //get current record;
+    while(!bufferPage.GetFirst(&fetchme)){
+        currentPageOffset++;
+        if(currentPageOffset>dFile.GetLength()){
+            return 0;
+        }
+        dFile.GetPage(&bufferPage,currentPageOffset);
+
+    }
+
+    return 1;
+    
 }
 
 int HeapFile::GetNext (Record &fetchme, CNF &cnf, Record &literal) {
+    
+}
+
+int HeapFile::initReadMode(){
+    //populates the bufferPage with the currentPage 
+    if(currentPageOffset>dFile.GetLength()) return 0;
+    dFile.AddPage(&bufferPage,currentPageOffset);
+    return 1;
+
 }

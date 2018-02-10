@@ -91,6 +91,27 @@ void loadTest(){
 	dbFile.Load(mySchema,"./lineitem.tbl");
 }
 
+void getNextTest(){
+	DBFile dbFile;
+	void* empty;
+	dbFile.Create("/Users/rishabh/Desktop/dFile.bin",heap,empty);
+	Schema mySchema ("catalog", "lineitem");
+	dbFile.Load(mySchema,"./lineitem.tbl");
+
+	Record rec;
+	//reading test
+	if(!dbFile.initReadMode()){
+		cout<<"currentPageOffset exceeds File's length!!!"<<endl;
+		return;
+	} 
+	for(int i=0;i<10;i++){
+		dbFile.GetNext(rec);
+		rec.Print(&mySchema);
+		cout<<"-----------------------------------------"<<endl;
+	}
+	
+}
+
 int main () {
 
 	setup (catalog_path, dbfile_dir, tpch_dir);
@@ -98,8 +119,9 @@ int main () {
 	//OWN TESTS
 	//createTest();
 
-	loadTest();
+	//loadTest();
 
+	getNextTest();
 	// void (*test) ();
 	// relation *rel_ptr[] = {n, r, c, p, ps, o, li};
 	// void (*test_ptr[]) () = {&test1, &test2, &test3};  

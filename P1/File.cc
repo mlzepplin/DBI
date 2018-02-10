@@ -159,10 +159,6 @@ void Page :: FromBinary (char *bits) {
 	delete temp;
 }
 
-TwoWayList<Record>* Page:: getMyRecs(){
-		return myRecs;
-	
-}
 
 File :: File () {
 }

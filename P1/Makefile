@@ -36,9 +36,11 @@ Record.o: Record.cc
 Schema.o: Schema.cc
 	$(CC) -g -c Schema.cc
 
+
 # added HeapFile support
 HeapFile.o: HeapFile.h DBFile.h Record.h Schema.h File.h Comparison.h ComparisonEngine.h Defs.h 
 	$(CC) -g -c HeapFile.cc
+
 
 y.tab.o: Parser.y
 	yacc -d Parser.y
