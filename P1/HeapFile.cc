@@ -15,15 +15,19 @@ HeapFile::HeapFile():DB(){
 }
 int HeapFile::Create (const char *fpath, void *startup){
     //zero parameter makes sure that the file is created
+    //and not opened
     dFile.Open(0,(char *)fpath);
 
 
 }
 
 void HeapFile::Load (Schema &f_schema, const char *loadpath) {
+   
    Record tempRecord;
-   //loadpath to std::FILE pointer
+   //loadpath of the .tbl file
     FILE *tableFile = fopen (loadpath, "r");
+
+    //init pageCount
     off_t pageCount =0;
    
     //fillup buffer page
@@ -32,7 +36,6 @@ void HeapFile::Load (Schema &f_schema, const char *loadpath) {
         if(bufferPage.Append(&tempRecord)==0){
             dFile.AddPage(&bufferPage,pageCount);
             bufferPage.EmptyItOut();
-            pageCount++;
         }  
     }
           

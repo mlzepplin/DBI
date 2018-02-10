@@ -9,7 +9,6 @@
 #include "ComparisonEngine.h"
 #include "DB.h"
 
-// stub DBFile header..replace it with your own DBFile.h 
 
 class HeapFile : public DB{
 

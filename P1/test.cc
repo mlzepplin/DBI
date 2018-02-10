@@ -87,16 +87,19 @@ void loadTest(){
 	DBFile dbFile;
 	void* empty;
 	dbFile.Create("/Users/rishabh/Desktop/dFile.bin",heap,empty);
-	// Schema mySchema ("catalog", "lineitem");
-	// dbFile.Load(mySchema,"./lineitem.tbl");
-	// h->Load(mySchema,"./lineitem.tbl");
+	Schema mySchema ("catalog", "lineitem");
+	dbFile.Load(mySchema,"./lineitem.tbl");
 }
 
 int main () {
 
 	setup (catalog_path, dbfile_dir, tpch_dir);
 
-	createTest();
+	//OWN TESTS
+	//createTest();
+
+	loadTest();
+
 	// void (*test) ();
 	// relation *rel_ptr[] = {n, r, c, p, ps, o, li};
 	// void (*test_ptr[]) () = {&test1, &test2, &test3};  
