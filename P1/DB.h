@@ -8,14 +8,14 @@
 class DB {
 
 protected:
-    FILE *dbFile;
+    FILE *database;
 	FILE *tblFile;
 	Page bufferPage;
 	Record *currentRecord;
 
 public:
    
-    virtual int Create (const char* fpath, fType file_type, void* startup) = 0;
+    virtual int Create (const char* fpath, void* startup) = 0;
     virtual int Open (const char* fpath) = 0;
     virtual int Close() = 0;
 

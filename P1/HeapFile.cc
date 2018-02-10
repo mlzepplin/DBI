@@ -11,10 +11,12 @@
 
 
 HeapFile::HeapFile():DB(){
-     
+      
 }
+int HeapFile::Create (const char *fpath, void *startup){
+    //zero parameter makes sure that the file is created
+    dFile.Open(0,(char *)fpath);
 
-int HeapFile::Create (const char *f_path, fType f_type, void *startup) {
 
 }
 

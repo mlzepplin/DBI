@@ -18,7 +18,7 @@ private:
 public:
 	HeapFile (); 
 
-	int Create (const char *fpath, fType file_type, void *startup);
+	int Create (const char *fpath, void *startup);
 	int Open (const char *fpath);
 	int Close ();
 

@@ -23,6 +23,7 @@ int DBFile::Create (const char *f_path, fType f_type, void *startup) {
     switch(f_type) {
         case heap: {
             db = new HeapFile();
+            db->Create(f_path, startup);
             break;
         default:
             cerr<<"Invalid file type option"<<endl;

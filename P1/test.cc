@@ -2,6 +2,7 @@
 #include "DBFile.h"
 #include "test.h"
 #include "HeapFile.h"
+#include "fTypeEnum.h"
 
 // make sure that the file path/dir information below is correct
 const char *dbfile_dir = ""; // dir where binary heap files should be stored
@@ -75,47 +76,58 @@ void test3 () {
 	dbfile.Close ();
 
 }
+void createTest(){
+		DBFile dbFile;
+		void* empty;
+		dbFile.Create("/Users/rishabh/Desktop/dFile.bin",heap,empty);
+    	
+}
+
 void loadTest(){
-		HeapFile *h = new HeapFile();
-    	Schema mySchema ("catalog", "lineitem");
-	    h->Load(mySchema,"./lineitem.tbl");
+	DBFile dbFile;
+	void* empty;
+	dbFile.Create("/Users/rishabh/Desktop/dFile.bin",heap,empty);
+	// Schema mySchema ("catalog", "lineitem");
+	// dbFile.Load(mySchema,"./lineitem.tbl");
+	// h->Load(mySchema,"./lineitem.tbl");
 }
 
 int main () {
 
 	setup (catalog_path, dbfile_dir, tpch_dir);
 
-	void (*test) ();
-	relation *rel_ptr[] = {n, r, c, p, ps, o, li};
-	void (*test_ptr[]) () = {&test1, &test2, &test3};  
+	createTest();
+	// void (*test) ();
+	// relation *rel_ptr[] = {n, r, c, p, ps, o, li};
+	// void (*test_ptr[]) () = {&test1, &test2, &test3};  
 
-	int tindx = 0;
-	while (tindx < 1 || tindx > 3) {
-		cout << " select test: \n";
-		cout << " \t 1. load file \n";
-		cout << " \t 2. scan \n";
-		cout << " \t 3. scan & filter \n \t ";
-		cin >> tindx;
-	}
+	// int tindx = 0;
+	// while (tindx < 1 || tindx > 3) {
+	// 	cout << " select test: \n";
+	// 	cout << " \t 1. load file \n";
+	// 	cout << " \t 2. scan \n";
+	// 	cout << " \t 3. scan & filter \n \t ";
+	// 	cin >> tindx;
+	// }
+	
+	//loadTest();
+	// int findx = 0;
+	// while (findx < 1 || findx > 7) {
+	// 	cout << "\n select table: \n";
+	// 	cout << "\t 1. nation \n";
+	// 	cout << "\t 2. region \n";
+	// 	cout << "\t 3. customer \n";
+	// 	cout << "\t 4. part \n";
+	// 	cout << "\t 5. partsupp \n";
+	// 	cout << "\t 6. orders \n";
+	// 	cout << "\t 7. lineitem \n \t ";
+	// 	cin >> findx;
+	// }
 
-	loadTest();
-	int findx = 0;
-	while (findx < 1 || findx > 7) {
-		cout << "\n select table: \n";
-		cout << "\t 1. nation \n";
-		cout << "\t 2. region \n";
-		cout << "\t 3. customer \n";
-		cout << "\t 4. part \n";
-		cout << "\t 5. partsupp \n";
-		cout << "\t 6. orders \n";
-		cout << "\t 7. lineitem \n \t ";
-		cin >> findx;
-	}
+	// rel = rel_ptr [findx - 1];
+	// test = test_ptr [tindx - 1];
 
-	rel = rel_ptr [findx - 1];
-	test = test_ptr [tindx - 1];
+	// test ();
 
-	test ();
-
-	cleanup ();
+	// cleanup ();
 }
