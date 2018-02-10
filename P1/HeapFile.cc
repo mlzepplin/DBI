@@ -33,22 +33,10 @@ void HeapFile::Load (Schema &f_schema, const char *loadpath) {
    
     //fillup buffer page
     while(tempRecord.SuckNextRecord (&f_schema,tableFile)==1){
-        //if page full add it to memory(dFile) empty out bufferPage
-        if(bufferPage.Append(&tempRecord)==0){
-            dFile.AddPage(&bufferPage,pageCount);
-            bufferPage.EmptyItOut();
-            pageCount++;
-            cout<<dFile.GetLength()<<endl;
-        }
-
+       Add(tempRecord);
     }
-    //need a check to see if buffer page is empty
-    if(bufferPage.GetFirst(&tempRecord)){
-        bufferPage.Append(&tempRecord);
-        dFile.AddPage(&bufferPage,pageCount);
-    }
-    
-          
+    dFile.AddPage(&bufferPage,pageCount);
+              
 }
 int HeapFile::Open (const char *f_path) {
     dFile.Open(1,(char *)f_path);
@@ -62,7 +50,7 @@ void HeapFile::MoveFirst () {
 }
 
 int HeapFile::Close () {
-    dFile.Close();
+    return dFile.Close();
 }
 
 void HeapFile::Add (Record &rec) {
@@ -101,8 +89,8 @@ int HeapFile::GetNext (Record &fetchme, CNF &cnf, Record &literal) {
     ComparisonEngine comp;
      
     while (GetNext(fetchme)) {
+        //Compare already populates fetchme
         if (comp.Compare (&fetchme, &literal, &cnf)){
-            //fetchme.Consume(&fetchme);
             return 1;
             }
         }
