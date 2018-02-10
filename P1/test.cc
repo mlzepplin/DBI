@@ -79,14 +79,14 @@ void test3 () {
 void createTest(){
 		DBFile dbFile;
 		void* empty;
-		dbFile.Create("/Users/rishabh/Desktop/dFile.bin",heap,empty);
+		dbFile.Create("./dFile.bin",heap,empty);
     	
 }
 
 void loadTest(){
 	DBFile dbFile;
 	void* empty;
-	dbFile.Create("/Users/rishabh/Desktop/dFile.bin",heap,empty);
+	dbFile.Create("./dFile.bin",heap,empty);
 	Schema mySchema ("catalog", "lineitem");
 	dbFile.Load(mySchema,"./lineitem.tbl");
 }
@@ -94,7 +94,7 @@ void loadTest(){
 void getNextTest(){
 	DBFile dbFile;
 	void* empty;
-	dbFile.Create("/Users/rishabh/Desktop/dFile.bin",heap,empty);
+	dbFile.Create("./dFile.bin",heap,empty);
 	Schema mySchema ("catalog", "lineitem");
 	dbFile.Load(mySchema,"./lineitem.tbl");
 
@@ -112,6 +112,42 @@ void getNextTest(){
 	
 }
 
+void getNextWithCnfTest(){
+	// try to parse the CNF
+    cout << "Enter in your CNF: ";
+    if (yyparse() != 0) {
+                cout << "Can't parse your CNF.\n";
+                exit (1);
+    }
+
+	extern struct AndList *final;
+	
+
+	DBFile dbFile;
+	dbFile.MoveFirst();
+
+	void* empty;
+	dbFile.Create("./dFile.bin",heap,empty);
+	Schema mySchema ("catalog", "lineitem");
+	dbFile.Load(mySchema,"./lineitem.tbl");
+
+	Record temp;
+	 // grow the CNF expression from the parse tree 
+        CNF cnf;
+        Record literal;
+        cnf.GrowFromParseTree (final, &mySchema, literal);
+
+		//Move to beginning
+
+	while (dbFile.GetNext(temp, cnf, literal)){
+		temp.Print(&mySchema);
+
+	}
+
+}
+
+
+
 int main () {
 
 	setup (catalog_path, dbfile_dir, tpch_dir);
@@ -121,7 +157,8 @@ int main () {
 
 	//loadTest();
 
-	getNextTest();
+	//getNextTest();
+	getNextWithCnfTest();
 	// void (*test) ();
 	// relation *rel_ptr[] = {n, r, c, p, ps, o, li};
 	// void (*test_ptr[]) () = {&test1, &test2, &test3};  

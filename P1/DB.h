@@ -26,6 +26,7 @@ public:
     virtual int GetNext (Record& fetchme) = 0;
     virtual int GetNext (Record& fetchme, CNF& cnf, Record& literal) = 0;
 
+    //Added new methods
     virtual int initReadMode() = 0;
 };
 #endif

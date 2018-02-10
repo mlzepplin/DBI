@@ -31,6 +31,5 @@ public:
 
 	int initReadMode();
 
-
 };
 #endif

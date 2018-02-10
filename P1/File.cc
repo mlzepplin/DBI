@@ -1,5 +1,5 @@
 //adding for verbose file output
-#define verbose
+//#define verbose
 
 #include "File.h"
 #include "TwoWayList.cc"
