@@ -9,11 +9,16 @@
 #include "ComparisonEngine.h"
 #include "DB.h"
 
+struct OffsetPair{
+	off_t pageOffset;
+	off_t recordOffset;
+};
 
 class HeapFile : public DB{
 
 private:
 	File dFile;
+	OffsetPair currentRecordOffsetPair;
 public:
 	HeapFile (); 
 

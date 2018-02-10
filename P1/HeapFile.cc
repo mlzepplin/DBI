@@ -44,7 +44,8 @@ int HeapFile::Open (const char *f_path) {
 }
 
 void HeapFile::MoveFirst () {
-
+  currentRecordOffsetPair.pageOffset = 0;
+  currentRecordOffsetPair.recordOffset = 0;
     
 }
 
