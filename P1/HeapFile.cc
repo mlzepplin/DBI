@@ -18,7 +18,7 @@ int HeapFile::Create (const char *fpath, void *startup){
     //zero parameter makes sure that the file is created
     //and not opened
     dFile.Open(0,(char *)fpath);
-
+    
 
 }
 
@@ -39,8 +39,15 @@ void HeapFile::Load (Schema &f_schema, const char *loadpath) {
             bufferPage.EmptyItOut();
             pageCount++;
             cout<<dFile.GetLength()<<endl;
-        }  
+        }
+
     }
+    //need a check to see if buffer page is empty
+    if(bufferPage.GetFirst(&tempRecord)){
+        bufferPage.Append(&tempRecord);
+        dFile.AddPage(&bufferPage,pageCount);
+    }
+    
           
 }
 int HeapFile::Open (const char *f_path) {
@@ -49,6 +56,8 @@ int HeapFile::Open (const char *f_path) {
 
 void HeapFile::MoveFirst () {
   currentPageOffset = 0;
+  bufferPage.EmptyItOut();
+  dFile.GetPage(&bufferPage,currentPageOffset);
    
 }
 
@@ -69,13 +78,17 @@ void HeapFile::Add (Record &rec) {
 
 int HeapFile::GetNext (Record &fetchme) {
     
-    //get current record;
+    //get current record
+    //this while loop only entered when we aren't able to
+    //get the nextrecord
     while(!bufferPage.GetFirst(&fetchme)){
+        
         currentPageOffset++;
-        if(currentPageOffset>dFile.GetLength()){
+        if(currentPageOffset>dFile.GetLength()-2){
             return 0;
         }
         dFile.GetPage(&bufferPage,currentPageOffset);
+        
 
     }
 
@@ -89,7 +102,7 @@ int HeapFile::GetNext (Record &fetchme, CNF &cnf, Record &literal) {
      
     while (GetNext(fetchme)) {
         if (comp.Compare (&fetchme, &literal, &cnf)){
-            fetchme.Consume(&fetchme);
+            //fetchme.Consume(&fetchme);
             return 1;
             }
         }
