@@ -10,56 +10,66 @@
 #include "HeapFile.h"
 #include "fTypeEnum.h"
 
-
 #include <iostream>
 
 // stub file .. replace it with your own DBFile.cc
 
-DBFile::DBFile () {
-  
+DBFile::DBFile()
+{
 }
 
-int DBFile::Create (const char *f_path, fType f_type, void *startup) {
-    switch(f_type) {
-        case heap: {
-            db = new HeapFile();
-            db->Create(f_path, startup);
-            break;
-        default:
-            cerr<<"Invalid file type option"<<endl;
-            exit(1);
-        }
+int DBFile::Create(const char *f_path, fType f_type, void *startup)
+{
+    switch (f_type)
+    {
+    case heap:
+    {
+        db = new HeapFile();
+        db->Create(f_path, startup);
+        break;
+    default:
+        cerr << "Invalid file type option" << endl;
+        exit(1);
+    }
     }
 }
 
-void DBFile::Load (Schema &f_schema, const char *loadpath) {
+void DBFile::Load(Schema &f_schema, const char *loadpath)
+{
     return db->Load(f_schema, loadpath);
 }
 
-int DBFile::Open (const char *f_path) {
+int DBFile::Open(const char *f_path)
+{
     return db->Open(f_path);
 }
 
-void DBFile::MoveFirst () {
+void DBFile::MoveFirst()
+{
     db->MoveFirst();
 }
 
-int DBFile::Close () {
+int DBFile::Close()
+{
     return db->Close();
 }
 
-void DBFile::Add (Record &rec) {
+void DBFile::Add(Record &rec)
+{
     return db->Add(rec);
 }
 
-int DBFile::GetNext (Record &fetchme) {
+int DBFile::GetNext(Record &fetchme)
+{
     db->GetNext(fetchme);
 }
 
-int DBFile::GetNext (Record &fetchme, CNF &cnf, Record &literal) {
+int DBFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
+{
     return db->GetNext(fetchme, cnf, literal);
 }
 
-int DBFile::initReadMode(){
+int DBFile::initReadMode()
+{
     return db->initReadMode();
 }
