@@ -14,7 +14,7 @@ protected:
 	Record *currentRecord;
 
 public:
-   
+
     virtual int Create (const char* fpath, void* startup) = 0;
     virtual int Open (const char* fpath) = 0;
     virtual int Close() = 0;
