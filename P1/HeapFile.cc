@@ -23,24 +23,21 @@ int HeapFile::Create(const char *fpath, void *startup)
 
 void HeapFile::Load(Schema &f_schema, const char *loadpath)
 {
-
     Record tempRecord;
     //loadpath of the .tbl file
     FILE *tableFile = fopen(loadpath, "r");
 
-    //init pageCount
-    off_t pageCount = 0;
-
-   
     bufferPage.EmptyItOut();
     //fillup buffer page
    
-    while(tempRecord.SuckNextRecord (&f_schema,tableFile)==1){
+    while(tempRecord.SuckNextRecord(&f_schema,tableFile)==1){
        Add(tempRecord);
     }
-    dFile.AddPage(&bufferPage,pageCount);
+    dFile.AddPage(&bufferPage,currentPageOffset);
+    currentPageOffset++;
+    bufferPage.EmptyItOut();
+    cout<<"-------------"<<dFile.GetLength();
     
-
 }
 
 int HeapFile::Open(const char *f_path)
@@ -53,6 +50,7 @@ void HeapFile::MoveFirst()
     currentPageOffset = 0;
     bufferPage.EmptyItOut();
     dFile.GetPage(&bufferPage, currentPageOffset);
+    currentPageOffset++;
 }
 
 int HeapFile::Close()
@@ -66,8 +64,14 @@ void HeapFile::Add(Record &rec)
     //Append record to end of current page.
     //If there is not enough memory, write page to file, empty it out and add record
     if (!bufferPage.Append(&rec))
-    {
-        dFile.AddPage(&bufferPage, dFile.GetLength());
+    {   
+        //which page is incremented, then checked against curLength
+        //Using currentPageOffset to index and increment, and not just 
+        //dFile.getLength()-1 because the appendages can be anywhere and not just
+        //at the immediate end of the dFile, also this will keep currentPageOffset updated
+        //and simultaneously keep updating the dFile.curLength through Append as well
+        dFile.AddPage(&bufferPage, currentPageOffset); //or do dFile.getLength()-1{if only want to append to immediate end}
+        currentPageOffset++;
         bufferPage.EmptyItOut();
         bufferPage.Append(&rec);
     }
@@ -82,12 +86,19 @@ int HeapFile::GetNext(Record &fetchme)
     while (!bufferPage.GetFirst(&fetchme))
     {
 
-        currentPageOffset++;
-        if (currentPageOffset > dFile.GetLength() - 2)
+        
+        if (currentPageOffset+1 >= dFile.GetLength())
         {
             return 0;
         }
+        /*
+        GetPage already increases the offset before apending
+        so no need to first increment currentpageOffset and
+        then before passing it in GetPage
+        */
         dFile.GetPage(&bufferPage, currentPageOffset);
+        bufferPage.GetFirst(&fetchme);
+        currentPageOffset++;
     }
 
     return 1;

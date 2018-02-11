@@ -39,7 +39,7 @@ void test2 () {
 	sprintf (tbl_path, "%s%s.tbl", tpch_dir, rel->name()); 
 	dbfile.Load (*(rel->schema ()), tbl_path);
 	dbfile.Close();
-
+	
 	dbfile.Open (rel->path());
 	dbfile.MoveFirst ();
 
