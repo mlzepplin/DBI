@@ -9,100 +9,107 @@
 
 #include <iostream>
 
-
-HeapFile::HeapFile():DB(){
-    currentPageOffset=0;
-    
+HeapFile::HeapFile() : DB()
+{
+    currentPageOffset = 0;
 }
-int HeapFile::Create (const char *fpath, void *startup){
+
+int HeapFile::Create(const char *fpath, void *startup)
+{
     //zero parameter makes sure that the file is created
     //and not opened
-    dFile.Open(0,(char *)fpath);
-    
-
+    dFile.Open(0, (char *)fpath);
 }
 
-void HeapFile::Load (Schema &f_schema, const char *loadpath) {
-   
-   Record tempRecord;
-   //loadpath of the .tbl file
-    FILE *tableFile = fopen (loadpath, "r");
+void HeapFile::Load(Schema &f_schema, const char *loadpath)
+{
+
+    Record tempRecord;
+    //loadpath of the .tbl file
+    FILE *tableFile = fopen(loadpath, "r");
 
     //init pageCount
-    off_t pageCount =0;
-   
+    off_t pageCount = 0;
+
     //fillup buffer page
-    while(tempRecord.SuckNextRecord (&f_schema,tableFile)==1){
-       Add(tempRecord);
+    while (tempRecord.SuckNextRecord(&f_schema, tableFile) == 1)
+    {
+        Add(tempRecord);
     }
-    dFile.AddPage(&bufferPage,pageCount);
-              
-}
-int HeapFile::Open (const char *f_path) {
-    dFile.Open(1,(char *)f_path);
+    dFile.AddPage(&bufferPage, pageCount);
 }
 
-void HeapFile::MoveFirst () {
-  currentPageOffset = 0;
-  bufferPage.EmptyItOut();
-  dFile.GetPage(&bufferPage,currentPageOffset);
-   
+int HeapFile::Open(const char *f_path)
+{
+    dFile.Open(1, (char *)f_path);
 }
 
-int HeapFile::Close () {
+void HeapFile::MoveFirst()
+{
+    currentPageOffset = 0;
+    bufferPage.EmptyItOut();
+    dFile.GetPage(&bufferPage, currentPageOffset);
+}
+
+int HeapFile::Close()
+{
     return dFile.Close();
 }
 
-void HeapFile::Add (Record &rec) {
+void HeapFile::Add(Record &rec)
+{
 
-    //Append record to end of current page. 
+    //Append record to end of current page.
     //If there is not enough memory, write page to file, empty it out and add record
-    if (!bufferPage.Append(&rec)){
-        dFile.AddPage(&bufferPage, dFile.GetLength()); 
+    if (!bufferPage.Append(&rec))
+    {
+        dFile.AddPage(&bufferPage, dFile.GetLength());
         bufferPage.EmptyItOut();
         bufferPage.Append(&rec);
     }
 }
 
-int HeapFile::GetNext (Record &fetchme) {
-    
+int HeapFile::GetNext(Record &fetchme)
+{
+
     //get current record
     //this while loop only entered when we aren't able to
     //get the nextrecord
-    while(!bufferPage.GetFirst(&fetchme)){
-        
+    while (!bufferPage.GetFirst(&fetchme))
+    {
+
         currentPageOffset++;
-        if(currentPageOffset>dFile.GetLength()-2){
+        if (currentPageOffset > dFile.GetLength() - 2)
+        {
             return 0;
         }
-        dFile.GetPage(&bufferPage,currentPageOffset);
-        
-
+        dFile.GetPage(&bufferPage, currentPageOffset);
     }
 
     return 1;
-    
 }
 
-int HeapFile::GetNext (Record &fetchme, CNF &cnf, Record &literal) { 
+int HeapFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
+{
 
     ComparisonEngine comp;
-     
-    while (GetNext(fetchme)) {
+
+    while (GetNext(fetchme))
+    {
         //Compare already populates fetchme
-        if (comp.Compare (&fetchme, &literal, &cnf)){
+        if (comp.Compare(&fetchme, &literal, &cnf))
+        {
             return 1;
-            }
         }
+    }
     return 0;
-   
 }
 
-int HeapFile::initReadMode(){
-    //populates the bufferPage with the currentPage 
-    if(currentPageOffset>dFile.GetLength()) return 0;
-    dFile.AddPage(&bufferPage,currentPageOffset);
+int HeapFile::initReadMode()
+{
+    //populates the bufferPage with the currentPage
+    if (currentPageOffset > dFile.GetLength())
+        return 0;
+    dFile.AddPage(&bufferPage, currentPageOffset);
     return 1;
-
 }
-
