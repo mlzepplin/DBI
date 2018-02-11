@@ -19,6 +19,8 @@ int HeapFile::Create(const char *fpath, void *startup)
     //zero parameter makes sure that the file is created
     //and not opened
     dFile.Open(0, (char *)fpath);
+
+    return 1;
 }
 
 void HeapFile::Load(Schema &f_schema, const char *loadpath)
@@ -34,7 +36,8 @@ void HeapFile::Load(Schema &f_schema, const char *loadpath)
        Add(tempRecord);
     }
     dFile.AddPage(&bufferPage,currentPageOffset);
-    currentPageOffset++;
+    //don't increment currentPageOffset at load's end, as it would
+    //need to point to the last record, not to the empty space after it
     bufferPage.EmptyItOut();
     
 }
@@ -42,6 +45,8 @@ void HeapFile::Load(Schema &f_schema, const char *loadpath)
 int HeapFile::Open(const char *f_path)
 {
     dFile.Open(1, (char *)f_path);
+
+    return 1;
 }
 
 void HeapFile::MoveFirst()
