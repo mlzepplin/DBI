@@ -36,7 +36,6 @@ void HeapFile::Load(Schema &f_schema, const char *loadpath)
     dFile.AddPage(&bufferPage,currentPageOffset);
     currentPageOffset++;
     bufferPage.EmptyItOut();
-    cout<<"-------------"<<dFile.GetLength();
     
 }
 
