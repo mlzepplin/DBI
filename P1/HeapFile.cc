@@ -31,12 +31,16 @@ void HeapFile::Load(Schema &f_schema, const char *loadpath)
     //init pageCount
     off_t pageCount = 0;
 
+   
+    bufferPage.EmptyItOut();
     //fillup buffer page
-    while (tempRecord.SuckNextRecord(&f_schema, tableFile) == 1)
-    {
-        Add(tempRecord);
+   
+    while(tempRecord.SuckNextRecord (&f_schema,tableFile)==1){
+       Add(tempRecord);
     }
-    dFile.AddPage(&bufferPage, pageCount);
+    dFile.AddPage(&bufferPage,pageCount);
+    
+
 }
 
 int HeapFile::Open(const char *f_path)
