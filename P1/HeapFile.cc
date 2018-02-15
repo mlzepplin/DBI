@@ -30,9 +30,9 @@ void HeapFile::Load(Schema &f_schema, const char *loadpath)
     FILE *tableFile = fopen(loadpath, "r");
 
     bufferPage.EmptyItOut();
+    
     //fillup buffer page
-   
-    while(tempRecord.SuckNextRecord(&f_schema,tableFile)==1){
+    while(tempRecord.SuckNextRecord(&f_schema,tableFile)==1){   
        Add(tempRecord);
     }
     dFile.AddPage(&bufferPage,currentPageOffset);
@@ -53,7 +53,7 @@ void HeapFile::MoveFirst()
 {
     currentPageOffset = 0;
     bufferPage.EmptyItOut();
-    dFile.GetPage(&bufferPage, currentPageOffset);
+    dFile.GetPage(&bufferPage, 0);
     currentPageOffset++;
 }
 
@@ -69,7 +69,19 @@ void HeapFile::Add(Record &rec)
     //If there is not enough memory, write page to file, empty it out and add record
     if (!bufferPage.Append(&rec))
     {   
-        //which page is incremented, then checked against curLength
+
+#ifdef printBufferLast
+        //*************************************************************************
+        //HELPER BLOCK TO PRINT THE LAST RECORD OF BUFFERPAGE BEFORE WRITING IT OUT
+        //*************************************************************************
+        Schema mySchema ("catalog", "customer");
+        cout<<"num records in buffer page before it's written out"<<endl;
+        cout<<bufferPage.getNumRecords()<<endl;
+        Record *c = bufferPage.peekLastRecord();
+        c->Print(&mySchema);
+        cout<<"--------------------------------"<<endl;      
+#endif
+        //which_page is incremented, then checked against curLength
         //Using currentPageOffset to index and increment, and not just 
         //dFile.getLength()-1 because the appendages can be anywhere and not just
         //at the immediate end of the dFile, also this will keep currentPageOffset updated
@@ -78,6 +90,8 @@ void HeapFile::Add(Record &rec)
         currentPageOffset++;
         bufferPage.EmptyItOut();
         bufferPage.Append(&rec);
+
+        
     }
 }
 
@@ -87,7 +101,7 @@ int HeapFile::GetNext(Record &fetchme)
     //get current record
     //this while loop only entered when we aren't able to
     //get the nextrecord
-    while (!bufferPage.GetFirst(&fetchme))
+    if(!bufferPage.GetFirst(&fetchme))
     {
 
         
@@ -101,8 +115,9 @@ int HeapFile::GetNext(Record &fetchme)
         then before passing it in GetPage
         */
         dFile.GetPage(&bufferPage, currentPageOffset);
-        bufferPage.GetFirst(&fetchme);
         currentPageOffset++;
+        bufferPage.GetFirst(&fetchme);
+        
     }
 
     return 1;

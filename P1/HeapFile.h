@@ -16,6 +16,7 @@ class HeapFile : public DB
 	File dFile;
 	off_t currentPageOffset;
 
+
   public:
 	HeapFile();
 

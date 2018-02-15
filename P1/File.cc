@@ -159,6 +159,17 @@ void Page :: FromBinary (char *bits) {
 	delete temp;
 }
 
+int Page::getNumRecords(){
+	return numRecs;
+}
+
+Record* Page::peekLastRecord(){
+	myRecs->MoveToFinish();
+	myRecs->Retreat();
+	Record *r = myRecs->Current(0);
+	return r;
+
+}
 
 File :: File () {
 }

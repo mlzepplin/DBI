@@ -15,7 +15,7 @@ class Page {
 private:
 	TwoWayList <Record> *myRecs;
 	
-	int numRecs;
+	int numRecs; //NOTE: this is the ground truth, DOES NOT TELL actual+1!!
 	int curSizeInBytes;
 
 public:
@@ -41,6 +41,12 @@ public:
 
 	// empty it out
 	void EmptyItOut ();
+
+	//*************
+	//ADDED HELPER METHODS
+	//*************
+	int getNumRecords();
+	Record* peekLastRecord();
 
 
 };
