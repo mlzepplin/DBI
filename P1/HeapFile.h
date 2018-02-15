@@ -1,24 +1,26 @@
-#ifndef DBFILE_H
-#define DBFILE_H
+#ifndef HEAPFILE_H
+#define HEAPFILE_H
 
-#include "DB.h"
 #include "TwoWayList.h"
 #include "Record.h"
 #include "Schema.h"
 #include "File.h"
 #include "Comparison.h"
 #include "ComparisonEngine.h"
-#include "fTypeEnum.h"
+#include "DB.h"
 
-// stub DBFile header..replace it with your own DBFile.h
-
-class DBFile
+class HeapFile : public DB
 {
 
-  public:
-	DBFile();
+  private:
+	File dFile;
+	off_t currentPageOffset;
 
-	int Create(const char *fpath, fType file_type, void *startup);
+
+  public:
+	HeapFile();
+
+	int Create(const char *fpath, void *startup);
 	int Open(const char *fpath);
 	int Close();
 
@@ -29,10 +31,6 @@ class DBFile
 	int GetNext(Record &fetchme);
 	int GetNext(Record &fetchme, CNF &cnf, Record &literal);
 
-	//Added new methods
 	int initReadMode();
-
-  private:
-	DB *db;
 };
 #endif

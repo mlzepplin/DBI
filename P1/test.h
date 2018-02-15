@@ -5,6 +5,7 @@
 #include <iostream>
 #include "DBFile.h"
 #include "Record.h"
+#include "HeapFile.h"
 using namespace std;
 
 extern "C" {
@@ -24,6 +25,7 @@ public:
 	relation (const char *_name, Schema *_schema, const char *_prefix) :
 		rname (_name), rschema (_schema), prefix (_prefix) {
 		sprintf (rpath, "%s%s.bin", prefix, rname);
+		
 	}
 	const char* name () { return rname; }
 	const char* path () { return rpath; }
@@ -42,6 +44,7 @@ public:
 		}
 		cnf_pred.GrowFromParseTree (final, schema (), literal); // constructs CNF predicate
 	}
+	
 };
 
 const char *supplier = "supplier"; 
