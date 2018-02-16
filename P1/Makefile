@@ -6,7 +6,11 @@ ifdef linux
 tag = -n
 endif
 
-test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o y.tab.o lex.yy.o test.o HeapFile.o 
+test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o
+    $(CC) -o test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o -lfl -lpthread
+
+
+a1-test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o y.tab.o lex.yy.o test.o HeapFile.o 
 	$(CC) -o test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o y.tab.o lex.yy.o test.o HeapFile.o 
 	
 #main: Record.o Comparison.o ComparisonEngine.o Schema.o File.o y.tab.o lex.yy.o main.o HeapFile.o
@@ -14,6 +18,9 @@ test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o y.ta
 	
 test.o: test.cc
 	$(CC) -g -c test.cc
+
+a1-test.o: a1-test.cc
+    $(CC) -g -c a1-test.cc
 
 main.o: main.cc
 	$(CC) -g -c main.cc
