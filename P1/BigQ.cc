@@ -1,8 +1,14 @@
 #include "BigQ.h"
+#include "Record.h"
 
 BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen) {
 	// read data from in pipe sort them into runlen pages
-
+	Record *r;
+	Schema mySchema ("catalog", "nation");
+	while(!in.Remove(r)){
+		r->Print(&mySchema);
+	}
+	
     // construct priority queue over sorted runs and dump sorted data 
  	// into the out pipe
 

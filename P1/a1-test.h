@@ -1,5 +1,5 @@
-#ifndef A1-TEST_H
-#define A1-TEST_H
+#ifndef A1TEST_H
+#define A1TEST_H
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>

@@ -86,7 +86,7 @@ void test1 (int option, int runlen) {
 
 	// sort order for records
 	OrderMaker sortorder;
-	rel->get_sort_order (sortorder);
+	//rel->get_sort_order (sortorder);
 
 	int buffsz = 100; // pipe cache size
 	Pipe input (buffsz);

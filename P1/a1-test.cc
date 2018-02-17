@@ -13,6 +13,7 @@ using namespace std;
 
 relation *rel;
 
+
 // load from a tpch file
 void test1 () {
 
@@ -34,14 +35,14 @@ void test2 () {
 	DBFile dbfile;
 	
 	//addon
-	dbfile.Create(rel->path(),heap,NULL);
-	char tbl_path[100]; // construct path of the tpch flat text file
-	sprintf (tbl_path, "%s%s.tbl", tpch_dir, rel->name()); 
-	dbfile.Load (*(rel->schema ()), tbl_path);
-	dbfile.Close();
-	
-	dbfile.Open (rel->path());
-	dbfile.MoveFirst ();
+	// dbfile.Create(rel->path(),heap,NULL);
+	// char tbl_path[100]; // construct path of the tpch flat text file
+	// sprintf (tbl_path, "%s%s.tbl", tpch_dir, rel->name()); 
+	// dbfile.Load (*(rel->schema ()), tbl_path);
+	// dbfile.Close();
+	cout << " DBFile will be created at " << rel->path () << endl;
+	dbfile.Open(rel->path());
+	dbfile.MoveFirst();
 
 	Record temp;
 
@@ -205,7 +206,7 @@ int main () {
 	rel = rel_ptr [findx - 1];
 	test = test_ptr [tindx - 1];
 
-	test ();
+	test();
 
 	cleanup ();
 }
