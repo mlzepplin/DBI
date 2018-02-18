@@ -6,3 +6,4 @@
 *.tbl
 *.bin
 *.o
+*.meta

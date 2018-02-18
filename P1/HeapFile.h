@@ -19,6 +19,7 @@ class HeapFile : public DB
 
   public:
 	HeapFile();
+	~HeapFile();
 
 	int Create(const char *fpath, void *startup);
 	int Open(const char *fpath);

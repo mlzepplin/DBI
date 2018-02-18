@@ -13,7 +13,12 @@ HeapFile::HeapFile() : DB()
 {
     currentPageOffset = 0;
 }
-
+HeapFile::~HeapFile()
+{   
+    delete(database);
+    delete(tblFile);
+    delete(currentRecord);
+}
 int HeapFile::Create(const char *fpath, void *startup)
 {
     //zero parameter makes sure that the file is created
