@@ -12,6 +12,13 @@ class BigQ {
 
 public:
 
+	Pipe *inPipe;
+	Pipe *outPipe;
+	OrderMaker sortOrder;
+	int runLength;
+
+	
+
 	BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen);
 	~BigQ ();
 };
