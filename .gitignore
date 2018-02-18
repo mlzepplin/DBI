@@ -7,3 +7,6 @@
 *.bin
 *.o
 *.meta
+*.bigq
+*.out
+

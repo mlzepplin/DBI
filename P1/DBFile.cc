@@ -31,7 +31,7 @@ int DBFile::Create(const char *f_path, fType f_type, void *startup)
 {
     ofstream auxFile;
     auxFile.open (auxFilePath);
-    
+    cout<<auxMap[f_type]<<": conversion by create"<<endl;
     if (auxMap.find(f_type) == auxMap.end()){
         cerr << "Invalid file type option" << endl;
         exit(1);
@@ -62,6 +62,7 @@ int DBFile::Open(const char *f_path)
     fType f_type;
     if (auxReadFile.is_open()) {
         auxReadFile >> f_type_int;
+        cout<<"READ INT ----"<<f_type_int<<endl;
         auxReadFile.close();
     }
     else{
@@ -79,6 +80,7 @@ int DBFile::Open(const char *f_path)
         return Create(f_path, f_type, NULL);
     }
     else{
+        cout<<"jkshsksbkhs--------"<<f_type<<endl;
         allocateMemToDB(f_type);
         return db->Open(f_path);
     }
@@ -87,7 +89,6 @@ int DBFile::Open(const char *f_path)
 }
 
 void DBFile::allocateMemToDB(fType f_type){
-
     switch (f_type)
     {
         case heap:

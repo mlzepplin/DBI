@@ -86,7 +86,7 @@ void test1 (int option, int runlen) {
 
 	// sort order for records
 	OrderMaker sortorder;
-	//rel->get_sort_order (sortorder);
+	rel->get_sort_order (sortorder);
 
 	int buffsz = 100; // pipe cache size
 	Pipe input (buffsz);
@@ -108,7 +108,6 @@ void test1 (int option, int runlen) {
 	pthread_create (&thread2, NULL, consumer, (void *)&tutil);
 
 	BigQ bq (input, output, sortorder, runlen);
-BigQ bq (input, output, sortorder, runlen);
 
 	pthread_join (thread1, NULL);
 	pthread_join (thread2, NULL);
