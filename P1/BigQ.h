@@ -8,19 +8,20 @@
 
 using namespace std;
 
-class BigQ {
+class BigQ
+{
 
-public:
-
+  public:
 	Pipe *inPipe;
 	Pipe *outPipe;
 	OrderMaker sortOrder;
 	int runLength;
 
-	
+	File *tempFile;
 
-	BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen);
-	~BigQ ();
+	BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen);
+	//bool Sorter(Record *i, Record *j);
+	~BigQ();
 };
 
 #endif
