@@ -15,42 +15,57 @@ void *working(void *big)
 	Schema mySchema("catalog", "region");
 
 	//stores all the runs
-	vector<vector<Record *>> runsVector;
+	vector<vector<Record *> > runsVector;
 	vector<Record *> currentRun;
+	Record *r;
 
 	//Read all records
 	while (bigQ->inPipe->Remove(&temp))
 	{
-		if (numPages < bigQ->runLength)
-		{
+		///currentRun.push_back(&temp);
+		//cout<<&temp<<"temp"<<endl;
+		//EACH TIME THE R WILL BE ALLOCATED MEM AT A DIFFERENT
+		//LOCATION AND WILL CONSUME TEMP
+		r = new Record();
+		r->Consume(&temp);
+		currentRun.push_back(r);
 
-			Record *record = new Record();
-			record->Consume(&temp);
-			currentRun.push_back(record);
+		//bigQ->outPipe->Insert(&temp);
 
-			//Append returns 0 if record can't fit in page
-			if (!bufferPage.Append(&temp))
-			{
-				numPages++;
-				bufferPage.EmptyItOut();
-				bufferPage.Append(&temp);
-			}
-		}
-		else
-		{
-			runsVector.push_back(currentRun);
-			currentRun.clear();
-			numPages = 0;
-		}
+		// if (numPages < bigQ->runLength)
+		// {
+
+		// 	Record *record = new Record();
+		// 	record->Consume(&temp);
+		// 	currentRun.push_back(record);
+
+		// 	//Append returns 0 if record can't fit in page
+		// 	if (!bufferPage.Append(&temp))
+		// 	{
+		// 		numPages++;
+		// 		bufferPage.EmptyItOut();
+		// 		bufferPage.Append(&temp);
+		// 	}
+		// }
+		// else
+		// {
+		// 	runsVector.push_back(currentRun);
+		// 	currentRun.clear();
+		// 	numPages = 0;
+		// }
 	}
 
 	//sort run
-	//TO-DO Add sorter method
-	//sort(currentRun.begin(), currentRun.end(), Sorter);
+	sort(currentRun.begin(), currentRun.end(), bigQ->comparater);
+	//cout<<"cur run size: "<<currentRun.size()<<endl;
 	// for (int i = 0; i < currentRun.size(); i++)
-	// {
+	// {	cout<<"skj"<<endl;
+	// 	//cout<<currentRun[i]<<endl;
 	// 	currentRun[i]->Print(&mySchema);
 	// }
+	for (Record *s : currentRun)
+        s->Print(&mySchema);
+
 }
 
 BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
@@ -60,6 +75,7 @@ BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 	inPipe = &in;
 	outPipe = &out;
 	sortOrder = sortorder;
+	comparater.sortOrder = this->sortOrder;
 	runLength = runlen;
 
 	pthread_t worker;
@@ -78,7 +94,7 @@ BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 	// finally shut down the out pipe
 
 	//wait for thread to finish, then release thread stack
-	pthread_join(worker, NULL);
+	pthread_join (worker, NULL);
 
 	//release lock on the out pipe, only when completely done
 	out.ShutDown();

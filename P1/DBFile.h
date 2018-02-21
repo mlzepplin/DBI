@@ -19,6 +19,7 @@ class DBFile
   private:
 	string auxFilePath;
 	unordered_map<fType, int> auxMap;
+	//pthread_rwlock_t rwlock;
 
   public:
 	DBFile();

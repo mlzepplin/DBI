@@ -63,7 +63,14 @@ void HeapFile::MoveFirst()
 }
 
 int HeapFile::Close()
-{
+{   
+    //write buffer page to dFile if any records still left
+    if(bufferPage.getNumRecords()!=0){
+        dFile.AddPage(&bufferPage,currentPageOffset);
+        //don't increment currentPageOffset at close's end, as it would
+        //need to point to the last record, not to the empty space after it
+        bufferPage.EmptyItOut();
+    }
     return dFile.Close();
 }
 

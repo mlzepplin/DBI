@@ -115,7 +115,7 @@ void test1 (int option, int runlen) {
 
 int main (int argc, char *argv[]) {
 
-	setup ();
+	setup();
 
 	relation *rel_ptr[] = {n, r, c, p, ps, o, li};
 

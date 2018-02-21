@@ -17,6 +17,7 @@
 
 DBFile::DBFile()
 {   auxFilePath = "aux.meta";
+    //pthread_rwlock_t rwlock=PTHREAD_RWLOCK_INITIALIZER;
     auxMap.insert(std::make_pair(heap,0));
     auxMap.insert(std::make_pair(sorted,1));
     auxMap.insert(std::make_pair(tree,2));
@@ -54,33 +55,35 @@ void DBFile::Load(Schema &f_schema, const char *loadpath)
 
 int DBFile::Open(const char *f_path)
 {   
+    /** THIS WE'LL TAKE CARE OF LATER, CURRENTLY DEFAULTING TO HEAPFILE
 
-    //FIRST READ FTPYE FROM AUX FILE
-    ifstream auxReadFile;
-    auxReadFile.open(auxFilePath);
-    int f_type_int;
-    fType f_type;
-    if (auxReadFile.is_open()) {
-        auxReadFile >> f_type_int;
-        cout<<"READ INT ----"<<f_type_int<<endl;
-        auxReadFile.close();
-    }
-    else{
-        cerr << "Can't open auxiliary file" << endl;
-        exit(1);
-    }
-    //get the key corresponding to our read value
-    for (unordered_map<fType,int>::const_iterator it = auxMap.begin(); it != auxMap.end(); ++it) {
-        if (it->second == f_type_int) f_type = it->first;
-    } 
+    //FIRST READ FTPYE FROM AUX FILE   
+    // ifstream auxReadFile;
+    // auxReadFile.open(auxFilePath);
+    // int f_type_int;
+    // fType f_type;
+    // if (auxReadFile.is_open()) {
+    //     auxReadFile >> f_type_int;
+    //     cout<<"READ INT ----"<<f_type_int<<endl;
+    //     auxReadFile.close();
+    // }
+    // else{
+    //     cerr << "Can't open auxiliary file" << endl;
+    //     exit(1);
+    // }
+    // //get the key corresponding to our read value
+    // for (unordered_map<fType,int>::const_iterator it = auxMap.begin(); it != auxMap.end(); ++it) {
+    //     if (it->second == f_type_int) f_type = it->first;
+    // } 
 
+    */
+    fType f_type=heap;// DEFAULTING TO HEAPFILE
     ifstream binFile(f_path);
     if (!binFile) {
         cerr<< "creating bin file without load as it didn't exist"<<endl;
         return Create(f_path, f_type, NULL);
     }
     else{
-        cout<<"jkshsksbkhs--------"<<f_type<<endl;
         allocateMemToDB(f_type);
         return db->Open(f_path);
     }
