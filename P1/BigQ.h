@@ -8,17 +8,18 @@
 
 using namespace std;
 
-struct Comp{
+struct Comp
+{
 
 	OrderMaker sortOrder;
 
-	bool operator()(Record *a, Record *b){
-		
+	bool operator()(Record *a, Record *b)
+	{
 		ComparisonEngine compEngine;
-		cout<<"sorder: "<<compEngine.Compare(a, b, &sortOrder)<<endl;
-		if(compEngine.Compare(a, b, &sortOrder) < 0)
+
+		if (compEngine.Compare(a, b, &sortOrder) > 0)
 			return true;
-		else 
+		else
 			return false;
 	}
 };
@@ -28,8 +29,7 @@ class BigQ
   public:
 	Pipe *inPipe;
 	Pipe *outPipe;
-	OrderMaker sortOrder;
-	Comp comparater;
+	Comp comparator;
 	int runLength;
 
 	File *tempFile;

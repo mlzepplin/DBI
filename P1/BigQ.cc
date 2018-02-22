@@ -10,62 +10,67 @@ void *working(void *big)
 	Record temp;
 	Page bufferPage;
 
-	int numPages = 0;
+	int currentRunSizeInBytes = 0;
 
-	Schema mySchema("catalog", "region");
+	Schema mySchema("catalog", "customer");
 
 	//stores all the runs
 	vector<vector<Record *> > runsVector;
 	vector<Record *> currentRun;
-	Record *r;
+
+	//PAGE_SIZE is sum of the twoWayList of records and 2 integer variables
+	int runSizeInBytes = (PAGE_SIZE - 2 * sizeof(int)) * bigQ->runLength;
 
 	//Read all records
 	while (bigQ->inPipe->Remove(&temp))
 	{
-		///currentRun.push_back(&temp);
-		//cout<<&temp<<"temp"<<endl;
-		//EACH TIME THE R WILL BE ALLOCATED MEM AT A DIFFERENT
-		//LOCATION AND WILL CONSUME TEMP
-		r = new Record();
-		r->Consume(&temp);
-		currentRun.push_back(r);
+		Record *record = new Record();
+		record->Consume(&temp);
 
-		//bigQ->outPipe->Insert(&temp);
+		//record's first sizeof(int) bytes represent it's size in number of bytes,
+		int currentRecordSizeInBytes = ((int *)record->GetBits())[0];
 
-		// if (numPages < bigQ->runLength)
-		// {
+		if (currentRunSizeInBytes + currentRecordSizeInBytes < runSizeInBytes)
+		{
+			currentRun.push_back(record);
+			currentRunSizeInBytes += currentRecordSizeInBytes;
+		}
+		else
+		{
+			runsVector.push_back(currentRun);
+			currentRun.clear();
+			currentRun.push_back(record);
+			currentRunSizeInBytes = currentRecordSizeInBytes;
+		}
+	}
+	runsVector.push_back(currentRun);
 
-		// 	Record *record = new Record();
-		// 	record->Consume(&temp);
-		// 	currentRun.push_back(record);
-
-		// 	//Append returns 0 if record can't fit in page
-		// 	if (!bufferPage.Append(&temp))
-		// 	{
-		// 		numPages++;
-		// 		bufferPage.EmptyItOut();
-		// 		bufferPage.Append(&temp);
-		// 	}
-		// }
-		// else
-		// {
-		// 	runsVector.push_back(currentRun);
-		// 	currentRun.clear();
-		// 	numPages = 0;
-		// }
+	//sort all runs seperately
+	for (int i = 0; i < runsVector.size(); i++)
+	{
+		sort(runsVector[i].begin(), runsVector[i].end(), bigQ->comparator);
 	}
 
-	//sort run
-	sort(currentRun.begin(), currentRun.end(), bigQ->comparater);
-	//cout<<"cur run size: "<<currentRun.size()<<endl;
-	// for (int i = 0; i < currentRun.size(); i++)
-	// {	cout<<"skj"<<endl;
-	// 	//cout<<currentRun[i]<<endl;
-	// 	currentRun[i]->Print(&mySchema);
-	// }
-	for (Record *s : currentRun)
-        s->Print(&mySchema);
+	//TO PONDER OVER - WHY IT DIDN'T WORK
+	// for (vector< Record* > run : runsVector){
 
+	// 	sort(run.begin(), run.end(), bigQ->comparator);
+
+	// }
+#ifdef printRecs
+	int runNum = 0;
+	for (vector<Record *> run : runsVector)
+	{
+		cout << "run: " << runNum << endl;
+		for (Record *s : run)
+		{
+			s->Print(&mySchema);
+			
+		}
+		runNum++;
+		cout << "-------------------------" << endl;
+	}
+#endif
 }
 
 BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
@@ -74,8 +79,7 @@ BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 
 	inPipe = &in;
 	outPipe = &out;
-	sortOrder = sortorder;
-	comparater.sortOrder = this->sortOrder;
+	comparator.sortOrder = sortorder;
 	runLength = runlen;
 
 	pthread_t worker;
@@ -94,7 +98,7 @@ BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 	// finally shut down the out pipe
 
 	//wait for thread to finish, then release thread stack
-	pthread_join (worker, NULL);
+	pthread_join(worker, NULL);
 
 	//release lock on the out pipe, only when completely done
 	out.ShutDown();
