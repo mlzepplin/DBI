@@ -8,12 +8,12 @@
 
 using namespace std;
 
-struct Comp
+//for sorting runs
+class Comp
 {
-
+	public:
 	OrderMaker sortOrder;
-
-	bool operator()(Record *a, Record *b)
+	bool operator()(Record * a, Record * b)
 	{
 		ComparisonEngine compEngine;
 
@@ -23,20 +23,46 @@ struct Comp
 			return false;
 	}
 };
+
+//for priority_queue
+class CompPair
+{	
+	public:
+	OrderMaker sortOrder;
+	CompPair(OrderMaker s){
+		this->sortOrder = s;
+	}
+	CompPair(){}
+	bool operator()(pair<int,Record *> a, pair<int,Record *> b)
+	{
+		ComparisonEngine compEngine;
+
+		if (compEngine.Compare(a.second, b.second, &sortOrder) > 0)
+			return true;
+		else
+			return false;
+	}
+};
+
+
+
+
 class BigQ
 {
 
   public:
 	Pipe *inPipe;
 	Pipe *outPipe;
+	CompPair comparatorPair;
 	Comp comparator;
 	int runLength;
-
+	OrderMaker sortOrder;
 	File *tempFile;
 
 	BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen);
-	//bool Sorter(Record *i, Record *j);
+	bool compare(Record *i, Record *j);
 	~BigQ();
+
 };
 
 #endif

@@ -1,7 +1,13 @@
+//#define printRecs
 #include "BigQ.h"
 #include "Record.h"
 #include "vector"
+#include "list"
+#include "queue"
 #include "algorithm"
+using namespace std;
+
+
 
 void *working(void *big)
 {
@@ -11,19 +17,23 @@ void *working(void *big)
 	Page bufferPage;
 
 	int currentRunSizeInBytes = 0;
+	int totalRecords=0;
 
-	Schema mySchema("catalog", "customer");
+	Schema mySchema("catalog", "partsupp");
 
 	//stores all the runs
 	vector<vector<Record *> > runsVector;
 	vector<Record *> currentRun;
+
+	vector<Record *> jk;
 
 	//PAGE_SIZE is sum of the twoWayList of records and 2 integer variables
 	int runSizeInBytes = (PAGE_SIZE - 2 * sizeof(int)) * bigQ->runLength;
 
 	//Read all records
 	while (bigQ->inPipe->Remove(&temp))
-	{
+	{	
+		totalRecords++;
 		Record *record = new Record();
 		record->Consume(&temp);
 
@@ -51,6 +61,42 @@ void *working(void *big)
 		sort(runsVector[i].begin(), runsVector[i].end(), bigQ->comparator);
 	}
 
+	
+	priority_queue<pair<int,Record *>, vector<pair<int,Record *> >, CompPair> pq(CompPair(bigQ->sortOrder));
+	
+	//init pq with the first element from each run
+	for (int i=0;i<runsVector.size();i++)
+	{
+		pq.push(std::make_pair(i,runsVector[i].back()));
+		runsVector[i].pop_back();
+		
+	}
+
+	
+	for(int i=0;i<totalRecords;i++){
+
+		//fill outpipe with smallest rec from pq
+		//bigQ->outPipe->Insert(pq.top().second);
+		Record *r = new Record();
+		r = pq.top().second;
+		jk.push_back(r);
+
+		int runWithSmallestRec = pq.top().first;
+		pq.pop();
+		if(!runsVector[runWithSmallestRec].back()){
+			continue;
+		}
+		else{
+			pq.push(std::make_pair(runWithSmallestRec,runsVector[runWithSmallestRec].back()));
+			runsVector[runWithSmallestRec].pop_back();
+			
+		}
+
+	}
+	for(int i=0; i<jk.size();i++){
+		jk[i]->Print(&mySchema);
+	}
+
 	//TO PONDER OVER - WHY IT DIDN'T WORK
 	// for (vector< Record* > run : runsVector){
 
@@ -68,10 +114,32 @@ void *working(void *big)
 			
 		}
 		runNum++;
-		cout << "-------------------------" << endl;
+		cout << "----------------------------------------------------------------" << endl;
+		cout<<"###################################################################"<<endl;
+		cout<<"###################################################################"<<endl;
+		cout<<"###################################################################"<<endl;
+		cout<<"###################################################################"<<endl;
+		cout<<"###################################################################"<<endl;
+		cout<<"###################################################################"<<endl;
+		cout<<"###################################################################"<<endl;
+		cout<<"###################################################################"<<endl;
+		cout<<"###################################################################"<<endl;
+		cout<<"###################################################################"<<endl;
+		cout<<"###################################################################"<<endl;
+		cout<<"###################################################################"<<endl;
+
 	}
 #endif
 }
+
+// bool BigQ::compare(Record *a, Record * b){
+// 	ComparisonEngine compEngine;
+
+// 		if (compEngine.Compare(a, b, &this->sortOrder) < 0)
+// 			return true;
+// 		else
+// 			return false;
+// }
 
 BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 {
@@ -79,7 +147,9 @@ BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 
 	inPipe = &in;
 	outPipe = &out;
-	comparator.sortOrder = sortorder;
+	sortOrder = sortorder;
+	comparatorPair.sortOrder = sortorder;
+	comparator.sortOrder = sortOrder;
 	runLength = runlen;
 
 	pthread_t worker;

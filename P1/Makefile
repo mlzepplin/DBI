@@ -30,7 +30,7 @@ ComparisonEngine.o: ComparisonEngine.cc
 Pipe.o: Pipe.cc
 	$(CC) -g -c Pipe.cc
 
-BigQ.o: BigQ.cc
+BigQ.o: BigQ.cc 
 	$(CC) -g -c BigQ.cc
 
 DBFile.o: DBFile.cc
