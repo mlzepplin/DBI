@@ -1,4 +1,3 @@
-//#define printRecs
 #include "BigQ.h"
 #include "Record.h"
 #include "vector"
@@ -7,32 +6,25 @@
 #include "algorithm"
 using namespace std;
 
-
-
 void *working(void *big)
 {
 	BigQ *bigQ = (BigQ *)big;
 
 	Record temp;
-	Page bufferPage;
-
+	
 	int currentRunSizeInBytes = 0;
-	int totalRecords=0;
-
-	Schema mySchema("catalog", "partsupp");
+	int totalRecords = 0;
 
 	//stores all the runs
 	vector<vector<Record *> > runsVector;
 	vector<Record *> currentRun;
 
-	vector<Record *> jk;
-
 	//PAGE_SIZE is sum of the twoWayList of records and 2 integer variables
 	int runSizeInBytes = (PAGE_SIZE - 2 * sizeof(int)) * bigQ->runLength;
 
-	//Read all records
+    // read data from in pipe sort them into runlen pages
 	while (bigQ->inPipe->Remove(&temp))
-	{	
+	{
 		totalRecords++;
 		Record *record = new Record();
 		record->Consume(&temp);
@@ -61,48 +53,46 @@ void *working(void *big)
 		sort(runsVector[i].begin(), runsVector[i].end(), bigQ->comparator);
 	}
 
-	
-	priority_queue<pair<int,Record *>, vector<pair<int,Record *> >, CompPair> pq(CompPair(bigQ->sortOrder));
-	
+	// construct priority queue over sorted runs and dump sorted data
+	// into the out pipe
+
+	//pair holds a record and the runNumber where that record came from
+	//so that we can keep track of which run's head to use for the new insert into pq
+	priority_queue<pair<int, Record *>, vector<pair<int, Record *> >, CompPair> pq(CompPair(bigQ->sortOrder));
+
 	//init pq with the first element from each run
-	for (int i=0;i<runsVector.size();i++)
+	for (int i = 0; i < runsVector.size(); i++)
 	{
-		pq.push(std::make_pair(i,runsVector[i].back()));
+		pq.push(std::make_pair(i, runsVector[i].back()));
 		runsVector[i].pop_back();
-		
 	}
 
-	
-	for(int i=0;i<totalRecords;i++){
+	for (int i = 0; i < totalRecords; i++)
+	{
 
 		//fill outpipe with smallest rec from pq
-		//bigQ->outPipe->Insert(pq.top().second);
-		Record *r = new Record();
-		r = pq.top().second;
-		jk.push_back(r);
+		bigQ->outPipe->Insert(pq.top().second);
 
 		int runWithSmallestRec = pq.top().first;
 		pq.pop();
-		if(!runsVector[runWithSmallestRec].back()){
+
+		if (runsVector[runWithSmallestRec].empty())
+		{
 			continue;
 		}
-		else{
-			pq.push(std::make_pair(runWithSmallestRec,runsVector[runWithSmallestRec].back()));
+		else
+		{
+			pq.push(std::make_pair(runWithSmallestRec, runsVector[runWithSmallestRec].back()));
 			runsVector[runWithSmallestRec].pop_back();
-			
 		}
-
-	}
-	for(int i=0; i<jk.size();i++){
-		jk[i]->Print(&mySchema);
 	}
 
-	//TO PONDER OVER - WHY IT DIDN'T WORK
-	// for (vector< Record* > run : runsVector){
+		//TO PONDER OVER - WHY IT DIDN'T WORK
+		// for (vector< Record* > run : runsVector){
 
-	// 	sort(run.begin(), run.end(), bigQ->comparator);
+		// 	sort(run.begin(), run.end(), bigQ->comparator);
 
-	// }
+		// }
 #ifdef printRecs
 	int runNum = 0;
 	for (vector<Record *> run : runsVector)
@@ -111,44 +101,20 @@ void *working(void *big)
 		for (Record *s : run)
 		{
 			s->Print(&mySchema);
-			
 		}
 		runNum++;
 		cout << "----------------------------------------------------------------" << endl;
-		cout<<"###################################################################"<<endl;
-		cout<<"###################################################################"<<endl;
-		cout<<"###################################################################"<<endl;
-		cout<<"###################################################################"<<endl;
-		cout<<"###################################################################"<<endl;
-		cout<<"###################################################################"<<endl;
-		cout<<"###################################################################"<<endl;
-		cout<<"###################################################################"<<endl;
-		cout<<"###################################################################"<<endl;
-		cout<<"###################################################################"<<endl;
-		cout<<"###################################################################"<<endl;
-		cout<<"###################################################################"<<endl;
-
 	}
 #endif
 }
 
-// bool BigQ::compare(Record *a, Record * b){
-// 	ComparisonEngine compEngine;
-
-// 		if (compEngine.Compare(a, b, &this->sortOrder) < 0)
-// 			return true;
-// 		else
-// 			return false;
-// }
-
 BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 {
-	// read data from in pipe sort them into runlen pages
+	
 
 	inPipe = &in;
 	outPipe = &out;
 	sortOrder = sortorder;
-	comparatorPair.sortOrder = sortorder;
 	comparator.sortOrder = sortOrder;
 	runLength = runlen;
 
@@ -162,14 +128,10 @@ BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 		exit(-1);
 	}
 
-	// construct priority queue over sorted runs and dump sorted data
-	// into the out pipe
-
-	// finally shut down the out pipe
-
 	//wait for thread to finish, then release thread stack
 	pthread_join(worker, NULL);
 
+	// finally shut down the out pipe
 	//release lock on the out pipe, only when completely done
 	out.ShutDown();
 }

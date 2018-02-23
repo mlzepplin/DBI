@@ -53,11 +53,9 @@ class BigQ
   public:
 	Pipe *inPipe;
 	Pipe *outPipe;
-	CompPair comparatorPair;
 	Comp comparator;
 	int runLength;
 	OrderMaker sortOrder;
-	File *tempFile;
 
 	BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen);
 	bool compare(Record *i, Record *j);
