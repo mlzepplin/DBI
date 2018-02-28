@@ -10,18 +10,27 @@
 #include "DB.h"
 #include "BigQ.h"
 
+enum FileMode
+{
+	read,
+	write
+};
+
 class SortedFile : public DB
 {
-    private:
+  private:
 	BigQ *bigQ;
 	Pipe *inPipe;
 	Pipe *outPipe;
+	FileMode mode;
+	int runLength;
+	OrderMaker sortOrder;
 
-    public:
-    SortedFile();
-    ~SortedFile();
+  public:
+	SortedFile();
+	~SortedFile();
 
-    int Create(const char *fpath, void *startup);
+	int Create(const char *fpath, void *startup);
 	int Open(const char *fpath);
 	int Close();
 
@@ -32,7 +41,9 @@ class SortedFile : public DB
 	int GetNext(Record &fetchme);
 	int GetNext(Record &fetchme, CNF &cnf, Record &literal);
 
-	int initReadMode();
+	void startReading();
+	void startWriting();
+	void createBigQ();
 };
 
 #endif

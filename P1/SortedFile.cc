@@ -6,18 +6,23 @@
 #include "ComparisonEngine.h"
 #include "SortedFile.h"
 #include "Defs.h"
+#include "DB.h"
 
 #include <iostream>
 #include <fstream>
 
-typedef struct {OrderMaker *o; int l;} StartUp;
-
+typedef struct
+{
+    OrderMaker *o;
+    int l;
+} StartUp;
 
 SortedFile::SortedFile() : DB()
 {
     currentPageOffset = 0;
-    inPipe = new Pipe(PIPE_SIZE);
-    outPipe = new Pipe(PIPE_SIZE);
+    inPipe = NULL;
+    outPipe = NULL;
+    runLength = 0;
 }
 
 SortedFile::~SortedFile()
@@ -28,20 +33,21 @@ SortedFile::~SortedFile()
 }
 
 int SortedFile::Create(const char *fpath, void *startup)
-{ 
+{
     StartUp s = *(StartUp *)startup;
     //init bigQ
-    bigQ = new BigQ(*inPipe,*outPipe,*s.o,s.l);
+    bigQ = new BigQ(*inPipe, *outPipe, *s.o, s.l);
 
     //generate auxfile name using f_path
     //the auxFiles are specific to each table
     string auxFilePath = getTableName(fpath);
     auxFilePath += ".meta";
     ofstream auxFile;
-    auxFile.open (auxFilePath);
-    
+    auxFile.open(auxFilePath);
+
     //write to output file
-    auxFile <<"sorted"<< "\n";
+    auxFile << "sorted"
+            << "\n";
     //TODO - write the sortedOrder to the file
     auxFile.close();
 
@@ -49,13 +55,10 @@ int SortedFile::Create(const char *fpath, void *startup)
     dFile.Open(0, (char *)fpath);
 
     return 1;
-     
-    
 }
 
 void SortedFile::Load(Schema &f_schema, const char *loadpath)
 {
-
 }
 
 int SortedFile::Open(const char *f_path)
@@ -73,8 +76,12 @@ void SortedFile::MoveFirst()
     currentPageOffset++;
 }
 
-void SortedFile::Add(Record &addme){
-
+void SortedFile::Add(Record &addme)
+{
+    //If in write mode, simply add record to bigQ
+    //If in read mode, initialize a bigQ instance, add record to it
+    startWriting();
+    inPipe->Insert(&addme);
 }
 
 int SortedFile::GetNext(Record &fetchme)
@@ -102,30 +109,43 @@ int SortedFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
 
     while (GetNext(fetchme))
     {
-        //Implement 
+        //Implement
     }
     return 0;
 }
 
 int SortedFile::Close()
 {
-    if(bufferPage.getNumRecords()!=0){
-        dFile.AddPage(&bufferPage,currentPageOffset);
+    if (bufferPage.getNumRecords() != 0)
+    {
+        dFile.AddPage(&bufferPage, currentPageOffset);
         bufferPage.EmptyItOut();
     }
-    //TODO 
+    //TODO
     //Store sortOrder, filetype to re-open file
     //If file is sorted, merge Bigq with data in file
 
-    return 1; 
+    return 1;
 }
 
-
-int SortedFile::initReadMode()
+void SortedFile::createBigQ()
 {
-    //populates the bufferPage with the currentPage
-    if (currentPageOffset > dFile.GetLength())
-        return 0;
-    dFile.AddPage(&bufferPage, currentPageOffset);
-    return 1;
+    inPipe = new Pipe(PIPE_SIZE);
+    outPipe = new Pipe(PIPE_SIZE);
+    bigQ = new BigQ(*inPipe, *outPipe, sortOrder, runLength);
+}
+
+void SortedFile::startReading()
+{
+    if (mode == read)
+        return;
+    mode = read;
+}
+
+void SortedFile::startWriting()
+{
+    if (mode == write)
+        return;
+    mode = write;
+    createBigQ();
 }
