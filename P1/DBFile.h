@@ -17,11 +17,10 @@ using namespace std;
 
 class DBFile
 {
-  private:
+private:
 	unordered_map<fType, string> auxMap;
 
-
-  public:
+public:
 	DBFile();
 	~DBFile();
 
@@ -36,12 +35,10 @@ class DBFile
 	int GetNext(Record &fetchme);
 	int GetNext(Record &fetchme, CNF &cnf, Record &literal);
 
-	//Added new methods
-	int initReadMode();
-	std::string getTableName(const char* fpath);
+	std::string getTableName(const char *fpath);
 	void allocateMemToDB(fType f_type);
 
-  private:
+private:
 	DB *db;
 };
 #endif
