@@ -6,6 +6,7 @@
 #include "File.h"
 #include "Comparison.h"
 #include "ComparisonEngine.h"
+#include <iostream>
 
 
 // This stores an individual comparison that is part of a CNF
@@ -13,6 +14,7 @@ class Comparison {
 
 	friend class ComparisonEngine;
 	friend class CNF;
+	
 
 	Target operand1;
 	int whichAtt1;
@@ -42,7 +44,7 @@ class OrderMaker {
 
 	friend class ComparisonEngine;
 	friend class CNF;
-
+public:
 	int numAtts;
 
 	int whichAtts[MAX_ANDS];
@@ -59,6 +61,16 @@ public:
 
 	// print to the screen
 	void Print ();
+
+	//overloading << and >> operators for file handling
+	/* NOTE 
+	The overloads of operator>> and operator<< that take a std::istream& or std::ostream& as the 
+	left hand argument are known as insertion and extraction operators. Since they take the 
+	user-defined type as the right argument (b in a@b), they must be implemented as non-members.
+	*/
+	friend std::ostream& operator<<(std::ostream& o,  OrderMaker& order);
+  	friend std::istream& operator>>(std::istream& i, OrderMaker& order); 
+  
 };
 
 class Record;
@@ -97,6 +109,7 @@ public:
         // a relational selection over a single relation so only one schema is used
         void GrowFromParseTree (struct AndList *parseTree, Schema *mySchema, 
 		Record &literal);
+
 
 };
 
