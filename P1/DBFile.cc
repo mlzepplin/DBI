@@ -9,6 +9,7 @@
 #include "Defs.h"
 #include "HeapFile.h"
 #include "fTypeEnum.h"
+#include "SortedFile.h"
 
 #include <iostream>
 #include <fstream>
@@ -17,7 +18,6 @@
 
 DBFile::DBFile()
 {   auxFilePath = "aux.meta";
-    //pthread_rwlock_t rwlock=PTHREAD_RWLOCK_INITIALIZER;
     auxMap.insert(std::make_pair(heap,0));
     auxMap.insert(std::make_pair(sorted,1));
     auxMap.insert(std::make_pair(tree,2));
@@ -31,7 +31,7 @@ DBFile::~DBFile(){
 int DBFile::Create(const char *f_path, fType f_type, void *startup)
 {
     ofstream auxFile;
-    auxFile.open (auxFilePath);
+    auxFile.open (auxFilePath,std::fstream::out);
     cout<<auxMap[f_type]<<": conversion by create"<<endl;
     if (auxMap.find(f_type) == auxMap.end()){
         cerr << "Invalid file type option" << endl;
@@ -55,29 +55,31 @@ void DBFile::Load(Schema &f_schema, const char *loadpath)
 
 int DBFile::Open(const char *f_path)
 {   
-    /** THIS WE'LL TAKE CARE OF LATER, CURRENTLY DEFAULTING TO HEAPFILE
+    /** THIS WE'LL TAKE CARE OF LATER, CURRENTLY DEFAULTING TO HEAPFILE*/
 
     //FIRST READ FTPYE FROM AUX FILE   
-    // ifstream auxReadFile;
-    // auxReadFile.open(auxFilePath);
-    // int f_type_int;
-    // fType f_type;
-    // if (auxReadFile.is_open()) {
-    //     auxReadFile >> f_type_int;
-    //     cout<<"READ INT ----"<<f_type_int<<endl;
-    //     auxReadFile.close();
-    // }
-    // else{
-    //     cerr << "Can't open auxiliary file" << endl;
-    //     exit(1);
-    // }
-    // //get the key corresponding to our read value
-    // for (unordered_map<fType,int>::const_iterator it = auxMap.begin(); it != auxMap.end(); ++it) {
-    //     if (it->second == f_type_int) f_type = it->first;
-    // } 
+    ifstream auxReadFile;
+    
+    int f_type_int;
+    fType f_type;
 
-    */
-    fType f_type=heap;// DEFAULTING TO HEAPFILE
+    while(auxReadFile.is_open());
+    auxReadFile.open(auxFilePath, std::fstream::in);
+    if(auxReadFile.is_open())
+    {
+        auxReadFile >> f_type_int;
+        cout<<"READ INT-----"<<f_type_int<<"..."<<endl<<endl;
+        auxReadFile.close();
+    }
+    else{
+        cerr << "Can't open auxiliary file" << endl;
+        exit(1);
+    }
+    //get the key corresponding to our read value
+    for (unordered_map<fType,int>::const_iterator it = auxMap.begin(); it != auxMap.end(); ++it) {
+        if (it->second == f_type_int) f_type = it->first;
+    } 
+    
     ifstream binFile(f_path);
     if (!binFile) {
         cerr<< "creating bin file without load as it didn't exist"<<endl;
@@ -98,10 +100,16 @@ void DBFile::allocateMemToDB(fType f_type){
         {   db = new HeapFile();
             break;
         }
+        case sorted:
+        {
+            db = new SortedFile();
+            break;
+        }
         default:
         { 
             cerr << "Unimplemented file type option given" << endl;
-            exit(1);
+            cerr<< "Defaulting to HeapFile"<<endl;
+            db = new HeapFile();
             
         }
        

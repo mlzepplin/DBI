@@ -13,10 +13,9 @@
 class SortedFile : public DB
 {
     private:
-    File dFile;
-    off_t currentPageOffset;
-	BigQ bigQ;
-
+	BigQ *bigQ;
+	Pipe *inPipe;
+	Pipe *outPipe;
 
     public:
     SortedFile();

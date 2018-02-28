@@ -11,7 +11,9 @@
 
 SortedFile::SortedFile() : DB()
 {
-    currentPageOffset = 0;
+    inPipe = new Pipe(PIPE_SIZE);
+    outPipe = new Pipe(PIPE_SIZE);
+
 }
 
 SortedFile::~SortedFile()
@@ -29,39 +31,6 @@ int SortedFile::Create(const char *fpath, void *startup)
 void SortedFile::Load(Schema &f_schema, const char *loadpath)
 {
 
-}
-
-int SortedFile::Open(const char *f_path)
-{
-    dFile.Open(1, (char *)f_path);
-
-    return 1;
-}
-
-void SortedFile::MoveFirst()
-{
-    currentPageOffset = 0;
-    bufferPage.EmptyItOut();
-    dFile.GetPage(&bufferPage, 0);
-    currentPageOffset++;
-}
-
-int SortedFile::GetNext(Record &fetchme)
-{
-
-    if (!bufferPage.GetFirst(&fetchme))
-    {
-        if (currentPageOffset + 1 >= dFile.GetLength())
-        {
-            return 0;
-        }
-
-        dFile.GetPage(&bufferPage, currentPageOffset);
-        currentPageOffset++;
-        bufferPage.GetFirst(&fetchme);
-    }
-
-    return 1;
 }
 
 int SortedFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
