@@ -59,6 +59,17 @@ int SortedFile::Create(const char *fpath, void *startup)
 
 void SortedFile::Load(Schema &f_schema, const char *loadpath)
 {
+    Record tempRecord;
+    FILE *tableFile = fopen(loadpath, "r");
+
+    bufferPage.EmptyItOut();
+
+    while (tempRecord.SuckNextRecord(&f_schema, tableFile) == 1)
+    {
+        Add(tempRecord);
+    }
+    dFile.AddPage(&bufferPage, currentPageOffset);
+    bufferPage.EmptyItOut();
 }
 
 int SortedFile::Open(const char *f_path)
