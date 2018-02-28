@@ -13,9 +13,9 @@
 
 typedef struct
 {
-    OrderMaker *o;
-    int l;
-} StartUp;
+    OrderMaker *orderMaker;
+    int runlength;
+} SortInfo;
 
 SortedFile::SortedFile() : DB()
 {
@@ -34,9 +34,10 @@ SortedFile::~SortedFile()
 
 int SortedFile::Create(const char *fpath, void *startup)
 {
-    StartUp s = *(StartUp *)startup;
-    //init bigQ
-    bigQ = new BigQ(*inPipe, *outPipe, *s.o, s.l);
+    SortInfo s = *(SortInfo *)startup;
+
+    sortOrder = *s.orderMaker;
+    runLength = s.runlength;
 
     //generate auxfile name using f_path
     //the auxFiles are specific to each table
@@ -115,13 +116,30 @@ int SortedFile::GetNext(Record &fetchme)
 
 int SortedFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
 {
+    OrderMaker queryOrder, cnfOrder;
+
+    //Build queryOrder by comparing sortOrder and cnfOrder
 
     ComparisonEngine comp;
 
-    while (GetNext(fetchme))
+    //If query order is empty, return first record that is equal to literal
+    //without performing a binary search
+    if (queryOrder.numAtts == 0)
     {
-        //Implement
+        while (GetNext(fetchme))
+        {
+            if (comp.Compare(&fetchme, &literal, &cnf))
+                return 1;
+        }
+        return 0;
     }
+
+    // if (matchSortOrder())
+    // {
+    //     binarySearch();
+    // }
+
+    
     return 0;
 }
 
