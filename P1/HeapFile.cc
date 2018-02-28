@@ -8,6 +8,7 @@
 #include "Defs.h"
 
 #include <iostream>
+#include <fstream>
 
 HeapFile::HeapFile() : DB()
 {
@@ -21,8 +22,18 @@ HeapFile::~HeapFile()
 }
 int HeapFile::Create(const char *fpath, void *startup)
 {
-    //zero parameter makes sure that the file is created
-    //and not opened
+    //generate auxfile name using f_path
+    //the auxFiles are specific to each table
+    string auxFilePath = getTableName(fpath);
+    auxFilePath += ".meta";
+    ofstream auxFile;
+    auxFile.open (auxFilePath);
+    
+    //write to output file
+    auxFile <<"heap"<< "\n";
+    auxFile.close();
+
+    //zero parameter makes sure that the file is created and not opened
     dFile.Open(0, (char *)fpath);
 
     return 1;

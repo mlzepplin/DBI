@@ -12,14 +12,14 @@
 #include <iostream>
 #include <unordered_map>
 
+using namespace std;
 // stub DBFile header..replace it with your own DBFile.h
 
 class DBFile
 {
   private:
-	string auxFilePath;
-	unordered_map<fType, int> auxMap;
-	//pthread_rwlock_t rwlock;
+	unordered_map<fType, string> auxMap;
+
 
   public:
 	DBFile();
@@ -38,7 +38,7 @@ class DBFile
 
 	//Added new methods
 	int initReadMode();
-
+	std::string getTableName(const char* fpath);
 	void allocateMemToDB(fType f_type);
 
   private:

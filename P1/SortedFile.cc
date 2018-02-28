@@ -8,10 +8,16 @@
 #include "Defs.h"
 
 #include <iostream>
+#include <fstream>
+
+typedef struct {OrderMaker *o; int l;} StartUp;
+
 
 SortedFile::SortedFile() : DB()
 {
     currentPageOffset = 0;
+    inPipe = new Pipe(PIPE_SIZE);
+    outPipe = new Pipe(PIPE_SIZE);
 }
 
 SortedFile::~SortedFile()
@@ -22,7 +28,28 @@ SortedFile::~SortedFile()
 }
 
 int SortedFile::Create(const char *fpath, void *startup)
-{
+{ 
+    StartUp s = *(StartUp *)startup;
+    //init bigQ
+    bigQ = new BigQ(*inPipe,*outPipe,*s.o,s.l);
+
+    //generate auxfile name using f_path
+    //the auxFiles are specific to each table
+    string auxFilePath = getTableName(fpath);
+    auxFilePath += ".meta";
+    ofstream auxFile;
+    auxFile.open (auxFilePath);
+    
+    //write to output file
+    auxFile <<"sorted"<< "\n";
+    //TODO - write the sortedOrder to the file
+    auxFile.close();
+
+    //zero parameter makes sure that the file is created and not opened
+    dFile.Open(0, (char *)fpath);
+
+    return 1;
+     
     
 }
 
@@ -47,7 +74,7 @@ void SortedFile::MoveFirst()
 }
 
 void SortedFile::Add(Record &addme){
-    
+
 }
 
 int SortedFile::GetNext(Record &fetchme)

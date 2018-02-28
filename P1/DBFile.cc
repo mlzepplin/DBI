@@ -17,10 +17,10 @@
 
 
 DBFile::DBFile()
-{   auxFilePath = "aux.meta";
-    auxMap.insert(std::make_pair(heap,0));
-    auxMap.insert(std::make_pair(sorted,1));
-    auxMap.insert(std::make_pair(tree,2));
+{   
+    auxMap.insert(std::make_pair(heap,"heap"));
+    auxMap.insert(std::make_pair(sorted,"sorted"));
+    auxMap.insert(std::make_pair(tree,"tree"));
 
 }
 DBFile::~DBFile(){
@@ -30,19 +30,6 @@ DBFile::~DBFile(){
 //CREATE ALWAYS DOES CREATE A NEW FILE!! ALWAYS!!
 int DBFile::Create(const char *f_path, fType f_type, void *startup)
 {
-    ofstream auxFile;
-    auxFile.open (auxFilePath,std::fstream::out);
-    cout<<auxMap[f_type]<<": conversion by create"<<endl;
-    if (auxMap.find(f_type) == auxMap.end()){
-        cerr << "Invalid file type option" << endl;
-        exit(1);
-    } 
-    else{
-        //write to output file
-        auxFile <<auxMap[f_type]<< "\n";
-        auxFile.close();
-    }
-    
     allocateMemToDB(f_type);
     return db->Create(f_path, startup);
     
@@ -59,25 +46,25 @@ int DBFile::Open(const char *f_path)
 
     //FIRST READ FTPYE FROM AUX FILE   
     ifstream auxReadFile;
-    
-    int f_type_int;
+    string auxFilePath = getTableName(f_path);
+    auxFilePath += ".meta";
+    string f_type_string;
     fType f_type;
 
-    while(auxReadFile.is_open());
-    auxReadFile.open(auxFilePath, std::fstream::in);
+    auxReadFile.open(auxFilePath);
     if(auxReadFile.is_open())
     {
-        auxReadFile >> f_type_int;
-        cout<<"READ INT-----"<<f_type_int<<"..."<<endl<<endl;
+        auxReadFile >> f_type_string;
+        cout<<"READ STRING-----"<<f_type_string<<"..."<<endl<<endl;
         auxReadFile.close();
     }
     else{
-        cerr << "Can't open auxiliary file" << endl;
+        cerr << "Can't open auxiliary file: "<<auxFilePath<< endl;
         exit(1);
     }
     //get the key corresponding to our read value
-    for (unordered_map<fType,int>::const_iterator it = auxMap.begin(); it != auxMap.end(); ++it) {
-        if (it->second == f_type_int) f_type = it->first;
+    for (unordered_map<fType,string>::const_iterator it = auxMap.begin(); it != auxMap.end(); ++it) {
+        if (it->second.compare(f_type_string) != 0) f_type = it->first;
     } 
     
     ifstream binFile(f_path);

@@ -13,16 +13,14 @@ test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile
 test.o: test.cc
 	$(CC) -g -c test.cc
 
-# a2test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o HeapFile.o
-# 	$(CC) -o test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o -lpthread HeapFile.o
+# a2test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o HeapFile.o SortedFile.o
+# 	$(CC) -o test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o -lpthread HeapFile.o SortedFile.o
 
 # a2-test.o: a2-test.cc
 # 	$(CC) -g -c test.cc
 
-
-# a1-test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o y.tab.o lex.yy.o a1-test.o HeapFile.o
-# 	$(CC) -o a1-test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o y.tab.o lex.yy.o a1-test.o HeapFile.o
-
+# a1-test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o y.tab.o lex.yy.o a1-test.o HeapFile.o SortedFile.o BigQ.o
+# 	$(CC) -o a1-test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o y.tab.o lex.yy.o a1-test.o HeapFile.o SortedFile.o BigQ.o
 
 # a1-test.o: a1-test.cc
 # 	$(CC) -g -c a1-test.cc

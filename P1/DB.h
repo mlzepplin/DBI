@@ -4,6 +4,8 @@
 #include "Record.h"
 #include "Schema.h"
 #include "fTypeEnum.h"
+#include <string>
+using namespace std;
 
 class DB
 {
@@ -15,6 +17,7 @@ class DB
     Record *currentRecord;
     File dFile;
     off_t currentPageOffset;
+   
 
   public:
     DB(){currentPageOffset=0;}
@@ -31,5 +34,12 @@ class DB
 
     //Added new methods
     virtual int initReadMode() = 0;
+    
+    static string getTableName(const char* fpath) {
+      string filePath(fpath);
+      size_t st = filePath.find_last_of('/'), end = filePath.find_last_of('.');
+      return filePath.substr(st+1, end-st-1);
+    }   
+
 };
 #endif

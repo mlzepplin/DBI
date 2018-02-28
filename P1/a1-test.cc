@@ -20,7 +20,7 @@ void test1 () {
 	DBFile dbfile;
 	cout << " DBFile will be created at " << rel->path () << endl;
 	dbfile.Create (rel->path(), heap, NULL);
-
+	
 	char tbl_path[100]; // construct path of the tpch flat text file
 	sprintf (tbl_path, "%s%s.tbl", tpch_dir, rel->name()); 
 	cout << " tpch file will be loaded from " << tbl_path << endl;
