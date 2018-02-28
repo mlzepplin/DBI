@@ -17,14 +17,12 @@ class DB
     off_t currentPageOffset;
 
   public:
-    inline DB(){currentPageOffset=0;}
-    ~DB();
-    //non virtual methods
-    int Open(const char *fpath);
-    void MoveFirst();
-    int GetNext(Record &fetchme);
-
-    //virtual methods
+    DB(){currentPageOffset=0;}
+    virtual ~DB(){};
+    
+    virtual int Open(const char *fpath)=0;
+    virtual void MoveFirst()=0;
+    virtual int GetNext(Record &fetchme)=0;
     virtual int Create(const char *fpath, void *startup) = 0;
     virtual int Close() = 0;
     virtual void Add(Record &addme) = 0;

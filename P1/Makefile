@@ -7,8 +7,8 @@ ifdef linux
 tag = -n
 endif
 
-test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o
-	$(CC) -o test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o -lfl -lpthread
+test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o HeapFile.o SortedFile.o
+	$(CC) -o test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o -lpthread HeapFile.o SortedFile.o
 
 test.o: test.cc
 	$(CC) -g -c test.cc
@@ -67,6 +67,7 @@ HeapFile.o: HeapFile.h DBFile.h Record.h Schema.h File.h Comparison.h Comparison
 
 SortedFile.o: SortedFile.h DBFile.h Record.h Schema.h File.h Comparison.h ComparisonEngine.h Defs.h BigQ.h
 	$(CC) -g -c SortedFile.cc
+
 
 clean:
 	rm -f *.o
