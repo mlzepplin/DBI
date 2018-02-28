@@ -5,18 +5,23 @@
 #include "Schema.h"
 #include "fTypeEnum.h"
 #include <string>
+#include <fstream>
 using namespace std;
 
 class DB
 {
 
-protected:
-  FILE *database;
-  FILE *tblFile;
-  Page bufferPage;
-  Record *currentRecord;
-  File dFile;
-  off_t currentPageOffset;
+
+  protected:
+    FILE *database;
+    FILE *tblFile;
+    Page bufferPage;
+    Record *currentRecord;
+    File dFile;
+    off_t currentPageOffset;
+    string auxFilePath;
+    ofstream auxFile;
+
 
 public:
   DB() { currentPageOffset = 0; }

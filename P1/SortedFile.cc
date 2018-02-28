@@ -34,24 +34,17 @@ SortedFile::~SortedFile()
 
 int SortedFile::Create(const char *fpath, void *startup)
 {
-    SortInfo s = *(SortInfo *)startup;
 
+    SortInfo s = *(SortInfo *)startup;
     sortOrder = *s.orderMaker;
     runLength = s.runlength;
+
 
     //generate auxfile name using f_path
     //the auxFiles are specific to each table
     string auxFilePath = getTableName(fpath);
     auxFilePath += ".meta";
-    ofstream auxFile;
-    auxFile.open(auxFilePath);
-
-    //write to output file
-    auxFile << "sorted"
-            << "\n";
-    //TODO - write the sortedOrder to the file
-    auxFile.close();
-
+    
     //zero parameter makes sure that the file is created and not opened
     dFile.Open(0, (char *)fpath);
 
@@ -75,6 +68,8 @@ void SortedFile::Load(Schema &f_schema, const char *loadpath)
 
 int SortedFile::Open(const char *f_path)
 {
+    string auxFilePath = getTableName(f_path);
+    auxFilePath += ".meta";
     dFile.Open(1, (char *)f_path);
 
     return 1;
@@ -150,9 +145,16 @@ int SortedFile::Close()
         dFile.AddPage(&bufferPage, currentPageOffset);
         bufferPage.EmptyItOut();
     }
+    
+     //write to output file
+    auxFile.open(auxFilePath);
+    auxFile << "sorted"<< "\n"<<sortOrder<<"\n"<<runLength<<"\n";
+    auxFile.close();
+
     //TODO
     //Store sortOrder, filetype to re-open file
     //If file is sorted, merge Bigq with data in file
+
 
     return 1;
 }

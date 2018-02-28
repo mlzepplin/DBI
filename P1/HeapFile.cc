@@ -24,15 +24,9 @@ int HeapFile::Create(const char *fpath, void *startup)
 {
     //generate auxfile name using f_path
     //the auxFiles are specific to each table
-    string auxFilePath = getTableName(fpath);
+    auxFilePath = getTableName(fpath);
     auxFilePath += ".meta";
-    ofstream auxFile;
-    auxFile.open (auxFilePath);
     
-    //write to output file
-    auxFile <<"heap"<< "\n";
-    auxFile.close();
-
     //zero parameter makes sure that the file is created and not opened
     dFile.Open(0, (char *)fpath);
 
@@ -82,6 +76,11 @@ int HeapFile::Close()
         //need to point to the last record, not to the empty space after it
         bufferPage.EmptyItOut();
     }
+    //write to meta file
+    auxFile.open (auxFilePath);
+    auxFile <<"heap"<< "\n";
+    auxFile.close();
+
     return dFile.Close();
 }
 
@@ -160,13 +159,4 @@ int HeapFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
         }
     }
     return 0;
-}
-
-int HeapFile::initReadMode()
-{
-    //populates the bufferPage with the currentPage
-    if (currentPageOffset > dFile.GetLength())
-        return 0;
-    dFile.AddPage(&bufferPage, currentPageOffset);
-    return 1;
 }

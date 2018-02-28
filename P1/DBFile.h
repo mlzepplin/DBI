@@ -35,7 +35,9 @@ public:
 	int GetNext(Record &fetchme);
 	int GetNext(Record &fetchme, CNF &cnf, Record &literal);
 
-	std::string getTableName(const char *fpath);
+
+
+	std::string getTableName(const char* fpath);
 	void allocateMemToDB(fType f_type);
 
 private:
