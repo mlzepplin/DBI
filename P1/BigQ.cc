@@ -4,6 +4,7 @@
 #include "list"
 #include "queue"
 #include "algorithm"
+#define printRecs
 using namespace std;
 
 void *working(void *big)
@@ -95,6 +96,7 @@ void *working(void *big)
 		// }
 #ifdef printRecs
 	int runNum = 0;
+	Schema mySchema ("catalog", "nation");
 	for (vector<Record *> run : runsVector)
 	{
 		cout << "run: " << runNum << endl;

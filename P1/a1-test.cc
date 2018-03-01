@@ -101,26 +101,7 @@ void loadTest(){
 	dbFile.Load(mySchema,"./lineitem.tbl");
 }
 
-void getNextTest(){
-	DBFile dbFile;
-	void* empty;
-	dbFile.Create("./dFile.bin",heap,empty);
-	Schema mySchema ("catalog", "lineitem");
-	dbFile.Load(mySchema,"./lineitem.tbl");
 
-	Record rec;
-	//reading test
-	if(!dbFile.initReadMode()){
-		cout<<"currentPageOffset exceeds File's length!!!"<<endl;
-		return;
-	} 
-	for(int i=0;i<10;i++){
-		dbFile.GetNext(rec);
-		rec.Print(&mySchema);
-		cout<<"-----------------------------------------"<<endl;
-	}
-	
-}
 
 void getNextWithCnfTest(){
 	// try to parse the CNF

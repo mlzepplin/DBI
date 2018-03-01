@@ -4,7 +4,7 @@
 #include "Record.h"
 #include "Schema.h"
 #include "File.h"
-#include "Comparison.h"
+//#include "Comparison.h"
 #include "ComparisonEngine.h"
 #include <iostream>
 
@@ -44,7 +44,7 @@ class OrderMaker {
 
 	friend class ComparisonEngine;
 	friend class CNF;
-public:
+public:	
 	int numAtts;
 
 	int whichAtts[MAX_ANDS];
@@ -68,10 +68,11 @@ public:
 	left hand argument are known as insertion and extraction operators. Since they take the 
 	user-defined type as the right argument (b in a@b), they must be implemented as non-members.
 	*/
-	friend std::ostream& operator<<(std::ostream& o,  OrderMaker& order);
-  	friend std::istream& operator>>(std::istream& i, OrderMaker& order); 
+	// friend std::ostream& operator<<(std::ostream& o,  OrderMaker& order);
+  	// friend std::istream& operator>>(std::istream& i, OrderMaker& order); 
   
 };
+
 
 class Record;
 

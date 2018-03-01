@@ -4,13 +4,11 @@
 #include "File.h"
 #include "Comparison.h"
 #include "ComparisonEngine.h"
-
 #include "DBFile.h"
 #include "Defs.h"
 #include "HeapFile.h"
 #include "fTypeEnum.h"
 #include "SortedFile.h"
-
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
@@ -46,16 +44,21 @@ int DBFile::Open(const char *f_path)
 
     //FIRST READ FTPYE FROM AUX FILE   
     ifstream auxReadFile;
-    string auxFilePath = getTableName(f_path);
+    
+    //get meta file path for this table
+    string auxFilePath = DB::getTableName(f_path);
     auxFilePath += ".meta";
+
+    //helper vars
     string f_type_string;
     fType f_type;
 
     auxReadFile.open(auxFilePath);
     if(auxReadFile.is_open())
-    {
+    {   
+        //first line of every meta file is the f_type string
         auxReadFile >> f_type_string;
-        cout<<"READ STRING-----"<<f_type_string<<"..."<<endl<<endl;
+        //cout<<"READ STRING-----"<<f_type_string<<"..."<<endl<<endl;
         auxReadFile.close();
     }
     else{
@@ -64,9 +67,9 @@ int DBFile::Open(const char *f_path)
     }
     //get the key corresponding to our read value
     for (unordered_map<fType,string>::const_iterator it = auxMap.begin(); it != auxMap.end(); ++it) {
-        if (it->second.compare(f_type_string) != 0) f_type = it->first;
+        if (it->second.compare(f_type_string) == 0) f_type = it->first;
     } 
-    
+    //cout<<"-----FTYPE IN DBFILE OPEN: "<<f_type<<endl;
     ifstream binFile(f_path);
     if (!binFile) {
         cerr<< "creating bin file without load as it didn't exist"<<endl;

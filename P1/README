@@ -40,7 +40,7 @@ q4
 
 q5
 (s_nationkey = 18) AND
-(s_acctbal > 1000.0) AND
+(s_acctbal > 1000.0) OR
 (s_suppkey < 400)
 
 q6

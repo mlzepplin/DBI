@@ -118,26 +118,26 @@ void OrderMaker :: Print () {
 }
 
 
-std::ostream& operator<<(std::ostream& os, const OrderMaker& order) {
-  os << order.numAtts << ' ';
-  for(int i=0; i<order.numAtts; ++i) 
-  	os << order.whichAtts[i] << ' ';
-  for(int i=0; i<order.numAtts; ++i) 
-  	os << order.whichTypes[i] << ' ';
-  os << std::endl;
-  return os;
-}
+// std::ostream& operator<<(std::ostream& os, const OrderMaker& order) {
+//   os << order.numAtts << ' ';
+//   for(int i=0; i<order.numAtts; ++i) 
+//   	os << order.whichAtts[i] << ' ';
+//   for(int i=0; i<order.numAtts; ++i) 
+//   	os << order.whichTypes[i] << ' ';
+//   os << std::endl;
+//   return os;
+// }
 
-std::istream& operator>>(std::istream& is, OrderMaker& order) {
-  is >> order.numAtts;
-  for(int i=0; i<order.numAtts; ++i) 
-  	is >> order.whichAtts[i];
-  for(int i=0; i<order.numAtts; ++i) {
-    int t; is >> t;
-    order.whichTypes[i] = static_cast<Type>(t);
-  }
-  return is;
-}
+// std::istream& operator>>(std::istream& is, OrderMaker& order) {
+//   is >> order.numAtts;
+//   for(int i=0; i<order.numAtts; ++i) 
+//   	is >> order.whichAtts[i];
+//   for(int i=0; i<order.numAtts; ++i) {
+//     int t; is >> t;
+//     order.whichTypes[i] = static_cast<Type>(t);
+//   }
+//   return is;
+// }
 
 
 

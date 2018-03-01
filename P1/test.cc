@@ -1,6 +1,8 @@
 #include "test.h"
 #include "BigQ.h"
 #include <pthread.h>
+#include <iostream>
+
 void test1 ();
 void test2 ();
 void test3 ();
@@ -13,6 +15,7 @@ int add_data (FILE *src, int numrecs, int &res) {
 	int proc = 0;
 	int xx = 20000;
 	while ((res = temp.SuckNextRecord (rel->schema (), src)) && ++proc < numrecs) {
+		temp.Print(rel->schema());//addon
 		dbfile.Add (temp);
 		if (proc == xx) cerr << "\t ";
 		if (proc % xx == 0) cerr << ".";
@@ -30,11 +33,11 @@ void test1 () {
 	OrderMaker o;
 	rel->get_sort_order (o);
 
-	int runlen = 0;
-	while (runlen < 1) {
-		cout << "\t\n specify runlength:\n\t ";
-		cin >> runlen;
-	}
+	int runlen = 2;
+	// while (runlen < 1) {
+	// 	cout << "\t\n specify runlength:\n\t ";
+	// 	std::cin>>runlen;
+	// }
 	struct {OrderMaker *o; int l;} startup = {&o, runlen};
 
 	DBFile dbfile;
@@ -53,13 +56,14 @@ void test1 () {
 	int proc = 1, res = 1, tot = 0;
 	while (proc && res) {
 		int x = 0;
-		while (x < 1 || x > 3) {
-			cout << "\n select option for : " << rel->path () << endl;
-			cout << " \t 1. add a few (1 to 1k recs)\n";
-			cout << " \t 2. add a lot (1k to 1e+06 recs) \n";
-			cout << " \t 3. run some query \n \t ";
-			cin >> x;
-		}
+		// while (x < 1 || x > 3) {
+		// 	cout << "\n select option for : " << rel->path () << endl;
+		// 	cout << " \t 1. add a few (1 to 1k recs)\n";
+		// 	cout << " \t 2. add a lot (1k to 1e+06 recs) \n";
+		// 	cout << " \t 3. run some query \n \t ";
+		// 	std::cin >> x;
+		// }
+		x=1;
 		if (x < 3) {
 			proc = add_data (tblfile,lrand48()%(int)pow(1e3,x)+(x-1)*1000, res);
 			tot += proc;
@@ -154,7 +158,7 @@ int main (int argc, char *argv[]) {
 	rel = rel_ptr [findx - 1];
 
 	test = test_ptr [tindx-1];
-	test ();
+	test();
 
 	cleanup ();
 	cout << "\n\n";
