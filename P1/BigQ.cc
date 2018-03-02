@@ -4,7 +4,7 @@
 #include "list"
 #include "queue"
 #include "algorithm"
-#define printRecs
+//#define printRecs
 using namespace std;
 
 void *working(void *big)
@@ -88,6 +88,7 @@ void *working(void *big)
 		}
 	}
 
+	
 		//TO PONDER OVER - WHY IT DIDN'T WORK
 		// for (vector< Record* > run : runsVector){
 
@@ -108,6 +109,8 @@ void *working(void *big)
 		cout << "----------------------------------------------------------------" << endl;
 	}
 #endif
+
+	bigQ->outPipe->ShutDown();
 }
 
 BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
@@ -135,7 +138,7 @@ BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 
 	// finally shut down the out pipe
 	//release lock on the out pipe, only when completely done
-	out.ShutDown();
+	//out.ShutDown();
 }
 
 BigQ::~BigQ()

@@ -15,7 +15,9 @@ int add_data (FILE *src, int numrecs, int &res) {
 	int proc = 0;
 	int xx = 20000;
 	while ((res = temp.SuckNextRecord (rel->schema (), src)) && ++proc < numrecs) {
+		
 		temp.Print(rel->schema());//addon
+		cout<<"test file add";
 		dbfile.Add (temp);
 		if (proc == xx) cerr << "\t ";
 		if (proc % xx == 0) cerr << ".";
@@ -49,7 +51,7 @@ void test1 () {
 	sprintf (tbl_path, "%s%s.tbl", tpch_dir, rel->name()); 
 	cout << " input from file : " << tbl_path << endl;
 
-        FILE *tblfile = fopen (tbl_path, "r");
+    FILE *tblfile = fopen (tbl_path, "r");
 
 	srand48 (time (NULL));
 
@@ -75,7 +77,7 @@ void test1 () {
 		}
 	}
 	cout << "\n create finished.. " << tot << " recs inserted\n";
-	fclose (tblfile);
+	fclose(tblfile);
 }
 
 // sequential scan of a DBfile 
@@ -84,10 +86,11 @@ void test2 () {
 	cout << " scan : " << rel->path() << "\n";
 	DBFile dbfile;
 	dbfile.Open (rel->path());
+	
 	dbfile.MoveFirst ();
-
+	cout<<"test2 after open before getnext"<<endl;
 	Record temp;
-
+	
 	int cnt = 0;
 	cerr << "\t";
 	while (dbfile.GetNext (temp) && ++cnt) {

@@ -17,20 +17,6 @@ typedef struct
     int runlength;
 } SortInfo;
 
-std::istream &operator>>(std::istream &is, OrderMaker &order)
-{
-    is >> order.numAtts;
-    for (int i = 0; i < order.numAtts; ++i)
-        is >> order.whichAtts[i];
-    for (int i = 0; i < order.numAtts; ++i)
-    {
-        int t;
-        is >> t;
-        order.whichTypes[i] = static_cast<Type>(t);
-    }
-    return is;
-}
-
 SortedFile::SortedFile() : DB()
 {
     currentPageOffset = 0;
@@ -55,7 +41,7 @@ int SortedFile::Create(const char *fpath, void *startup)
     runLength = s.runlength;
 
     //populate auxFilePath
-    //the auxFiles are specific to each table
+    //auxFiles are specific to each table
     auxFilePath = getTableName(fpath);
     auxFilePath += ".meta";
 
@@ -84,7 +70,6 @@ int SortedFile::Open(const char *f_path)
 {
     string auxFilePath = getTableName(f_path);
     auxFilePath += ".meta";
-
     //read meta file and set sortOrder and runLength
     ifstream auxReadFile;
     //helper vars
@@ -104,7 +89,7 @@ int SortedFile::Open(const char *f_path)
             sortOrder.whichTypes[i] = static_cast<Type>(t);
         }
         auxReadFile >> runLength;
-        //cout<<"READ STRING-----"<<f_type_string<<"..."<<endl<<endl;
+        cout<<"READ STRING in open-----"<<f_type_string<<"..."<<endl<<endl;
         auxReadFile.close();
     }
     dFile.Open(1, (char *)f_path);
@@ -116,9 +101,9 @@ void SortedFile::MoveFirst()
 {
     startReading();
     currentPageOffset = 0;
-    bufferPage.EmptyItOut();
-    dFile.GetPage(&bufferPage, 0);
-    currentPageOffset++;
+    // bufferPage.EmptyItOut();
+    // dFile.GetPage(&bufferPage, 0);
+    // currentPageOffset++;
 }
 
 void SortedFile::Add(Record &addme)
@@ -128,6 +113,7 @@ void SortedFile::Add(Record &addme)
     cout<<"sorted file add";
 
     startWriting();
+    cout <<"mode"<< mode<<endl;
     inPipe->Insert(&addme);
 }
 
@@ -179,16 +165,9 @@ int SortedFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
 }
 
 int SortedFile::Close()
-{
-    if (bufferPage.getNumRecords() != 0)
-    {
-        dFile.AddPage(&bufferPage, currentPageOffset);
-        bufferPage.EmptyItOut();
-    }
-
+{   
     //write to output file
     auxFile.open(auxFilePath);
-    //auxFile << "sorted"<< "\n"<<sortOrder<<"\n"<<runLength<<"\n";
     auxFile << "sorted"
             << "\n";
     auxFile << sortOrder.numAtts << ' ';
@@ -203,7 +182,7 @@ int SortedFile::Close()
     //TODO
     //Store sortOrder, filetype to re-open file
     //If file is sorted, merge Bigq with data in file
-
+    if(mode==write) mergeBiQAndDfile();
     return dFile.Close();
 }
 
@@ -211,52 +190,45 @@ void SortedFile::createBigQ()
 {
     inPipe = new Pipe(PIPE_SIZE);
     outPipe = new Pipe(PIPE_SIZE);
+    //trying bigQ here
+    
+}
+
+void SortedFile::mergeBiQAndDfile(){
+    //the main thread/process releases its lock on the inPipe
+    //this allows BigQ to sort using inPipe and write to the outPipe
+    inPipe->ShutDown();
+    //cout<<"before bigQ"<<endl;
+    bigQ = new BigQ(*inPipe, *outPipe, sortOrder, runLength);
+    //cout<<"after bigQ"<<endl;
+    // //wait for the outPipe to be released by BigQ and then use outPipe to write to dFile 
+    
+    Record temp;
+    Schema mySchema("catalog", "nation");
+    
+    // 
+
+    deleteBigQ();
+}
+
+void SortedFile::deleteBigQ(){
+    delete inPipe;
+    delete outPipe;
+    delete bigQ;
+    inPipe = outPipe = NULL;
+    bigQ = NULL;
 }
 
 void SortedFile::startReading()
 {
-    // if (mode == read)
-    //     return;
+    if (mode == read)
+         return;
     mode = read;
-    //the main thread/process releases its lock on the inPipe
-    //this allows BigQ to sort using inPipe and write to the outPipe
-    inPipe->ShutDown();
-    //wait for the outPipe to be released by BigQ and then use outPipe to write to dFile
-    bigQ = new BigQ(*inPipe, *outPipe, sortOrder, runLength);
-    Record temp;
-    Schema mySchema("catalog", "nation");
-    cout<<"POPULATING DFILE::"<<endl;
-    while (outPipe->Remove(&temp))
-    {   temp.Print(&mySchema);
-        if (!bufferPage.Append(&temp))
-        {
-
-#ifdef printBufferLast
-            //*************************************************************************
-            //HELPER BLOCK TO PRINT THE LAST RECORD OF BUFFERPAGE BEFORE WRITING IT OUT
-            //*************************************************************************
-            Schema mySchema("catalog", "customer");
-            cout << "num records in buffer page before it's written out" << endl;
-            cout << bufferPage.getNumRecords() << endl;
-            Record *c = bufferPage.peekLastRecord();
-            c->Print(&mySchema);
-            cout << "--------------------------------" << endl;
-#endif
-            //which_page is incremented, then checked against curLength
-            //Using currentPageOffset to index and increment, and not just
-            //dFile.getLength()-1 because the appendages can be anywhere and not just
-            //at the immediate end of the dFile, also this will keep currentPageOffset updated
-            //and simultaneously keep updating the dFile.curLength through Append as well
-            dFile.AddPage(&bufferPage, currentPageOffset); //or do dFile.getLength()-1{if only want to append to immediate end}
-            currentPageOffset++;
-            bufferPage.EmptyItOut();
-            bufferPage.Append(&temp);
-        }
-    }
+    mergeBiQAndDfile();
 }
 
 void SortedFile::startWriting()
-{
+{   cout<<"start writibg "<<endl;
     if (mode == write)
         return;
     mode = write;

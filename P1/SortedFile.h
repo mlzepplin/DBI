@@ -44,6 +44,8 @@ class SortedFile : public DB
 	void startReading();
 	void startWriting();
 	void createBigQ();
+	void mergeBiQAndDfile();
+	void deleteBigQ();
 };
 
 #endif
