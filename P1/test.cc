@@ -16,15 +16,11 @@ int add_data (FILE *src, int numrecs, int &res) {
 	int xx = 20000;
 	while ((res = temp.SuckNextRecord (rel->schema (), src)) && ++proc < numrecs) {
 		
-		temp.Print(rel->schema());//addon
-		cout<<"test file add";
 		dbfile.Add (temp);
 		if (proc == xx) cerr << "\t ";
 		if (proc % xx == 0) cerr << ".";
 	}
-	cout<<"BEFORE CLOSE"<<endl;
 	dbfile.Close ();
-	cout<<"AFTER CLOASE"<<endl;
 	return proc;
 }
 
@@ -58,7 +54,7 @@ void test1 () {
 
 	int proc = 1, res = 1, tot = 0;
 	int x = 1;
-	while (proc && res) {
+	for(int i=0;i<2;i++){
 		
 		// while (x < 1 || x > 3) {
 		// 	cout << "\n select option for : " << rel->path () << endl;
@@ -91,7 +87,7 @@ void test2 () {
 	dbfile.Open (rel->path());
 	
 	dbfile.MoveFirst ();
-	cout<<"test2 after open before getnext"<<endl;
+	
 	Record temp;
 	
 	int cnt = 0;

@@ -15,7 +15,9 @@ HeapFile::HeapFile() : DB()
     currentPageOffset = 0;
 }
 HeapFile::~HeapFile()
-{   
+{   database = NULL;
+    tblFile = NULL;
+    currentRecord = NULL;
     delete(database);
     delete(tblFile);
     delete(currentRecord);

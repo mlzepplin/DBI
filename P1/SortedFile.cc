@@ -29,9 +29,9 @@ SortedFile::SortedFile() : DB()
 
 SortedFile::~SortedFile()
 {
-    delete (database);
-    delete (tblFile);
-    delete (currentRecord);
+    // delete (database);
+    // delete (tblFile);
+    // delete (currentRecord);
 }
 
 int SortedFile::Create(const char *fpath, void *startup)
@@ -94,7 +94,7 @@ int SortedFile::Open(const char *f_path)
             sortOrder.whichTypes[i] = static_cast<Type>(t);
         }
         auxReadFile >> runLength;
-        cout<<"READ STRING in open-----"<<f_type_string<<"..."<<endl<<endl;
+        //cout<<"READ STRING in open-----"<<f_type_string<<"..."<<endl<<endl;
         auxReadFile.close();
     }
     dFile.Open(1, (char *)f_path);
@@ -220,10 +220,7 @@ void SortedFile::mergeBiQAndDfile(){
         //now we'll have to check if the page brought in was not empty
         fileEmpty = !GetNext(fileRecord);
     }
-     //Schema mySchema ("catalog", "nation");
-    //cout <<"IN MERGE"<<endl<<endl<<endl;
-    //pipeRecord.Print(&mySchema);
-    
+     
    //merging 
     while (!fileEmpty||!pipeEmpty){
        
@@ -254,15 +251,16 @@ void SortedFile::mergeBiQAndDfile(){
 }
 
 void SortedFile::deleteBigQ(){
+    
+    inPipe = outPipe = NULL;
+    bigQ = NULL;
     delete inPipe;
     delete outPipe;
     delete bigQ;
-    inPipe = outPipe = NULL;
-    bigQ = NULL;
 }
 
 void SortedFile::startReading()
-{   cout<<"start reading "<<endl;
+{   
     if (mode == read)
          return;
     mode = read;
@@ -270,7 +268,7 @@ void SortedFile::startReading()
 }
 
 void SortedFile::startWriting()
-{   cout<<"start writibg "<<endl;
+{   
     if (mode == write)
         return;
     mode = write;
