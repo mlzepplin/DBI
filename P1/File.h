@@ -84,6 +84,8 @@ public:
 	// closes the file and returns the file length (in number of pages)
 	int Close ();
 
+	off_t lastIndex() const { return curLength-2; }
+
 };
 
 

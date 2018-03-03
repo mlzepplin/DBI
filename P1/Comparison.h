@@ -8,12 +8,14 @@
 #include "ComparisonEngine.h"
 #include <iostream>
 
+class CNF;
 
 // This stores an individual comparison that is part of a CNF
 class Comparison {
 
 	friend class ComparisonEngine;
 	friend class CNF;
+	friend class OrderMaker;
 	
 
 	Target operand1;
@@ -70,6 +72,9 @@ public:
 	*/
 	// friend std::ostream& operator<<(std::ostream& o,  OrderMaker& order);
   	// friend std::istream& operator>>(std::istream& i, OrderMaker& order); 
+	
+	static int locateAttributeInCnf(int att, CNF &query);
+	static void buildQueryOrder(const OrderMaker &sortOrder, CNF &query, OrderMaker &queryOrder, OrderMaker &cnfOrder);
   
 };
 
@@ -82,6 +87,8 @@ class Record;
 class CNF {
 
 	friend class ComparisonEngine;
+	friend class Comparison;
+	friend class OrderMaker;
 
 	Comparison orList[MAX_ANDS][MAX_ORS];
 	

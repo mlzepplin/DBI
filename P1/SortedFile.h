@@ -46,6 +46,7 @@ class SortedFile : public DB
 	void createBigQ();
 	void mergeBiQAndDfile();
 	void deleteBigQ();
+	int binarySearch(Record& fetchme, OrderMaker& queryorder, Record& literal, OrderMaker& cnforder, ComparisonEngine& comp);
 };
 
 #endif
