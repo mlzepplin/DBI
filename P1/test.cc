@@ -22,8 +22,9 @@ int add_data (FILE *src, int numrecs, int &res) {
 		if (proc == xx) cerr << "\t ";
 		if (proc % xx == 0) cerr << ".";
 	}
-
+	cout<<"BEFORE CLOSE"<<endl;
 	dbfile.Close ();
+	cout<<"AFTER CLOASE"<<endl;
 	return proc;
 }
 
@@ -56,8 +57,9 @@ void test1 () {
 	srand48 (time (NULL));
 
 	int proc = 1, res = 1, tot = 0;
+	int x = 1;
 	while (proc && res) {
-		int x = 0;
+		
 		// while (x < 1 || x > 3) {
 		// 	cout << "\n select option for : " << rel->path () << endl;
 		// 	cout << " \t 1. add a few (1 to 1k recs)\n";
@@ -65,7 +67,7 @@ void test1 () {
 		// 	cout << " \t 3. run some query \n \t ";
 		// 	std::cin >> x;
 		// }
-		x=1;
+		
 		if (x < 3) {
 			proc = add_data (tblfile,lrand48()%(int)pow(1e3,x)+(x-1)*1000, res);
 			tot += proc;
@@ -73,8 +75,9 @@ void test1 () {
 				cout << "\n\t added " << proc << " recs..so far " << tot << endl;
 		}
 		else {
-			test3 ();
+			test2 ();
 		}
+		x=3;
 	}
 	cout << "\n create finished.. " << tot << " recs inserted\n";
 	fclose(tblfile);
