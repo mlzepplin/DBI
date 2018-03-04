@@ -45,7 +45,7 @@ int SortedFile::Create(const char *fpath, void *startup)
     //auxFiles are specific to each table
     tableName = getTableName(fpath);
     binPath = getBinPath(fpath);
-    
+
     //zero parameter makes sure that the file is created and not opened
     dFile.Open(0, (char *)fpath);
 
@@ -74,7 +74,7 @@ int SortedFile::Open(const char *f_path)
     binPath = getBinPath(f_path);
     string auxFilePath = getTableName(f_path);
     auxFilePath += ".meta";
-    
+
     //read meta file and set sortOrder and runLength
     ifstream auxReadFile;
     //helper vars
@@ -94,8 +94,7 @@ int SortedFile::Open(const char *f_path)
             sortOrder.whichTypes[i] = static_cast<Type>(t);
         }
         auxReadFile >> runLength;
-        cout << "READ STRING in open-----" << f_type_string << "..." << endl
-             << endl;
+        //cout<<"READ STRING in open-----"<<f_type_string<<"..."<<endl<<endl;
         auxReadFile.close();
     }
     dFile.Open(1, (char *)f_path);
@@ -116,16 +115,12 @@ void SortedFile::Add(Record &addme)
 {
     //If in write mode, simply add record to bigQ
     //If in read mode, initialize a bigQ instance, add record to it
-    cout << "sorted file add";
-
     startWriting();
-    cout << "mode" << mode << endl;
     inPipe->Insert(&addme);
 }
 
 int SortedFile::GetNext(Record &fetchme)
 {
-    startReading();
     if (!bufferPage.GetFirst(&fetchme))
     {
         if (currentPageOffset + 1 >= dFile.GetLength())
@@ -157,9 +152,9 @@ int SortedFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
     do
     {
         if (comp.Compare(&fetchme, &queryOrder, &literal, &cnfOrder))
-            return 0; 
+            return 0;
         if (comp.Compare(&fetchme, &literal, &cnf))
-            return 1; 
+            return 1;
     } while (GetNext(fetchme));
     return 0;
 }
@@ -167,7 +162,7 @@ int SortedFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
 int SortedFile::Close()
 {
     //write to output file
-    auxFile.open(tableName+".meta");
+    auxFile.open(tableName + ".meta");
     auxFile << "sorted"
             << "\n";
     auxFile << sortOrder.numAtts << ' ';
@@ -185,65 +180,6 @@ int SortedFile::Close()
     if (mode == write)
         mergeBiQAndDfile();
     return dFile.Close();
-}
-
-void SortedFile::initPipes()
-{
-    inPipe = new Pipe(PIPE_SIZE);
-    outPipe = new Pipe(PIPE_SIZE);
-    //trying bigQ here
-}
-
-void SortedFile::mergeBiQAndDfile()
-{
-    //the main thread/process releases its lock on the inPipe
-    //this allows BigQ to sort using inPipe and write to the outPipe
-    inPipe->ShutDown();
-    
-     //BigQ populates the outPipe and releases its lock on it
-    bigQ = new BigQ(*inPipe, *outPipe, sortOrder, runLength);
-    //cout<<"after bigQ"<<endl;
-    // //wait for the outPipe to be released by BigQ and then use outPipe to write to dFile
-
-    Record temp;
-    Schema mySchema("catalog", "nation");
-
-    //
-
-    // initialize
-    if (!fileEmpty) {
-        moveFirstWithoutModeSwitch();
-        //now we'll have to check if the page brought in was not empty
-        fileEmpty = !GetNext(fileRecord);
-    }
-     
-   //merging 
-    while (!fileEmpty||!pipeEmpty){
-       
-        if(fileEmpty|| (!pipeEmpty && compEngine.Compare(&pipeRecord,&fileRecord, &sortOrder)<0)){
-            tempFile.Add(pipeRecord);
-            pipeEmpty = !outPipe->Remove(&pipeRecord);
-            
-        }
-        else if(pipeEmpty|| (!fileEmpty && compEngine.Compare(&pipeRecord,&fileRecord, &sortOrder)>=0)){
-            tempFile.Add(fileRecord);
-            fileEmpty = !GetNext(fileRecord);
-        }
-        else{
-            cerr<<"merge failed"<<endl;
-            exit(1);
-        }
-    }
-    tempFile.Close();    
-    //RENAMING FILE
-    string newName = binPath+"/"+tableName+".bin";
-    if(rename(tempPath,newName.c_str() )!=0){
-        cout<<"merge rename/write failed"<<endl;
-        exit(1);
-    } 
-
-    //END MERGING
-    deleteBigQ();
 }
 
 int SortedFile::binarySearch(Record &fetchme, OrderMaker &queryOrder, Record &literal, OrderMaker &cnfOrder, ComparisonEngine &comp)
@@ -278,20 +214,93 @@ int SortedFile::binarySearch(Record &fetchme, OrderMaker &queryOrder, Record &li
     {
         if (!GetNext(fetchme))
             return 0;
-        result = comp.Compare(&fetchme, &queryOrder, &literal, &cnfOrder);
+result = comp.Compare(&fetchme, &queryOrder, &literal, &cnfOrder);
     } while (result < 0);
     return result == 0;
 }
 
+
+void SortedFile::initPipes()
+{
+    inPipe = new Pipe(PIPE_SIZE);
+    outPipe = new Pipe(PIPE_SIZE);
+}
+
+void SortedFile::mergeBiQAndDfile()
+{
+    //the main thread/process releases its lock on the inPipe
+    //this allows BigQ to sort using inPipe and write to the outPipe
+    inPipe->ShutDown();
+
+    //BigQ populates the outPipe and releases its lock on it
+    bigQ = new BigQ(*inPipe, *outPipe, sortOrder, runLength);
+
+    //--------MERGING-----------
+    Record fileRecord, pipeRecord;
+    bool fileEmpty = dFile.isEmpty(), pipeEmpty = !outPipe->Remove(&pipeRecord);
+
+    //merge will be written to temp file
+    string tempString = binPath + "/temp.bin";
+    cout << "TEMPSTRING" << binPath << endl;
+    const char *tempPath = tempString.c_str();
+    HeapFile tempFile;
+    tempFile.Create((char *)tempPath, NULL);
+
+    ComparisonEngine compEngine;
+
+    // initialize
+    if (!fileEmpty)
+    {
+        moveFirstWithoutModeSwitch();
+        //now we'll have to check if the page brought in was not empty
+        fileEmpty = !GetNext(fileRecord);
+    }
+
+    //merging
+    while (!fileEmpty || !pipeEmpty)
+    {
+
+        if (fileEmpty || (!pipeEmpty && compEngine.Compare(&pipeRecord, &fileRecord, &sortOrder) < 0))
+        {
+            tempFile.Add(pipeRecord);
+            pipeEmpty = !outPipe->Remove(&pipeRecord);
+        }
+        else if (pipeEmpty || (!fileEmpty && compEngine.Compare(&pipeRecord, &fileRecord, &sortOrder) >= 0))
+        {
+            tempFile.Add(fileRecord);
+            fileEmpty = !GetNext(fileRecord);
+        }
+        else
+        {
+            cerr << "merge failed" << endl;
+            exit(1);
+        }
+    }
+    tempFile.Close();
+    //RENAMING FILE
+    string newName = binPath + "/" + tableName + ".bin";
+    if (rename(tempPath, newName.c_str()) != 0)
+    {
+        cout << "merge rename/write failed" << endl;
+        exit(1);
+    }
+
+    //END MERGING
+    deleteBigQ();
+}
+
 void SortedFile::deleteBigQ()
 {
+
+    inPipe = outPipe = NULL;
+    bigQ = NULL;
     delete inPipe;
     delete outPipe;
     delete bigQ;
 }
 
 void SortedFile::startReading()
-{   
+{
     if (mode == read)
         return;
     mode = read;
@@ -299,7 +308,7 @@ void SortedFile::startReading()
 }
 
 void SortedFile::startWriting()
-{   
+{
     if (mode == write)
         return;
     mode = write;
