@@ -15,7 +15,9 @@ HeapFile::HeapFile() : DB()
     currentPageOffset = 0;
 }
 HeapFile::~HeapFile()
-{   
+{   database = NULL;
+    tblFile = NULL;
+    currentRecord = NULL;
     delete(database);
     delete(tblFile);
     delete(currentRecord);
@@ -24,8 +26,8 @@ int HeapFile::Create(const char *fpath, void *startup)
 {
     //generate auxfile name using f_path
     //the auxFiles are specific to each table
-    auxFilePath = getTableName(fpath);
-    auxFilePath += ".meta";
+    tableName = getTableName(fpath);
+    binPath = getBinPath(fpath);
     
     //zero parameter makes sure that the file is created and not opened
     dFile.Open(0, (char *)fpath);
@@ -77,7 +79,7 @@ int HeapFile::Close()
         bufferPage.EmptyItOut();
     }
     //write to meta file
-    auxFile.open (auxFilePath);
+    auxFile.open (tableName+".meta");
     auxFile <<"heap"<< "\n";
     auxFile.close();
 

@@ -7,6 +7,7 @@
 #include "SortedFile.h"
 #include "Defs.h"
 #include "DB.h"
+#include "HeapFile.h"
 
 #include <iostream>
 #include <fstream>
@@ -28,9 +29,9 @@ SortedFile::SortedFile() : DB()
 
 SortedFile::~SortedFile()
 {
-    delete (database);
-    delete (tblFile);
-    delete (currentRecord);
+    // delete (database);
+    // delete (tblFile);
+    // delete (currentRecord);
 }
 
 int SortedFile::Create(const char *fpath, void *startup)
@@ -42,9 +43,9 @@ int SortedFile::Create(const char *fpath, void *startup)
 
     //populate auxFilePath
     //auxFiles are specific to each table
-    auxFilePath = getTableName(fpath);
-    auxFilePath += ".meta";
-
+    tableName = getTableName(fpath);
+    binPath = getBinPath(fpath);
+    
     //zero parameter makes sure that the file is created and not opened
     dFile.Open(0, (char *)fpath);
 
@@ -68,8 +69,12 @@ void SortedFile::Load(Schema &f_schema, const char *loadpath)
 
 int SortedFile::Open(const char *f_path)
 {
+    //firstly setting binPath and table name
+    tableName = getTableName(f_path);
+    binPath = getBinPath(f_path);
     string auxFilePath = getTableName(f_path);
     auxFilePath += ".meta";
+    
     //read meta file and set sortOrder and runLength
     ifstream auxReadFile;
     //helper vars
@@ -102,9 +107,9 @@ void SortedFile::MoveFirst()
 {
     startReading();
     currentPageOffset = 0;
-    // bufferPage.EmptyItOut();
-    // dFile.GetPage(&bufferPage, 0);
-    // currentPageOffset++;
+    bufferPage.EmptyItOut();
+    dFile.GetPage(&bufferPage, 0);
+    currentPageOffset++;
 }
 
 void SortedFile::Add(Record &addme)
@@ -162,7 +167,7 @@ int SortedFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
 int SortedFile::Close()
 {
     //write to output file
-    auxFile.open(auxFilePath);
+    auxFile.open(tableName+".meta");
     auxFile << "sorted"
             << "\n";
     auxFile << sortOrder.numAtts << ' ';
@@ -182,7 +187,7 @@ int SortedFile::Close()
     return dFile.Close();
 }
 
-void SortedFile::createBigQ()
+void SortedFile::initPipes()
 {
     inPipe = new Pipe(PIPE_SIZE);
     outPipe = new Pipe(PIPE_SIZE);
@@ -194,7 +199,8 @@ void SortedFile::mergeBiQAndDfile()
     //the main thread/process releases its lock on the inPipe
     //this allows BigQ to sort using inPipe and write to the outPipe
     inPipe->ShutDown();
-    //cout<<"before bigQ"<<endl;
+    
+     //BigQ populates the outPipe and releases its lock on it
     bigQ = new BigQ(*inPipe, *outPipe, sortOrder, runLength);
     //cout<<"after bigQ"<<endl;
     // //wait for the outPipe to be released by BigQ and then use outPipe to write to dFile
@@ -204,6 +210,39 @@ void SortedFile::mergeBiQAndDfile()
 
     //
 
+    // initialize
+    if (!fileEmpty) {
+        moveFirstWithoutModeSwitch();
+        //now we'll have to check if the page brought in was not empty
+        fileEmpty = !GetNext(fileRecord);
+    }
+     
+   //merging 
+    while (!fileEmpty||!pipeEmpty){
+       
+        if(fileEmpty|| (!pipeEmpty && compEngine.Compare(&pipeRecord,&fileRecord, &sortOrder)<0)){
+            tempFile.Add(pipeRecord);
+            pipeEmpty = !outPipe->Remove(&pipeRecord);
+            
+        }
+        else if(pipeEmpty|| (!fileEmpty && compEngine.Compare(&pipeRecord,&fileRecord, &sortOrder)>=0)){
+            tempFile.Add(fileRecord);
+            fileEmpty = !GetNext(fileRecord);
+        }
+        else{
+            cerr<<"merge failed"<<endl;
+            exit(1);
+        }
+    }
+    tempFile.Close();    
+    //RENAMING FILE
+    string newName = binPath+"/"+tableName+".bin";
+    if(rename(tempPath,newName.c_str() )!=0){
+        cout<<"merge rename/write failed"<<endl;
+        exit(1);
+    } 
+
+    //END MERGING
     deleteBigQ();
 }
 
@@ -249,12 +288,10 @@ void SortedFile::deleteBigQ()
     delete inPipe;
     delete outPipe;
     delete bigQ;
-    inPipe = outPipe = NULL;
-    bigQ = NULL;
 }
 
 void SortedFile::startReading()
-{
+{   
     if (mode == read)
         return;
     mode = read;
@@ -262,11 +299,9 @@ void SortedFile::startReading()
 }
 
 void SortedFile::startWriting()
-{
-    cout << "start writibg " << endl;
+{   
     if (mode == write)
         return;
     mode = write;
-
-    createBigQ();
+    initPipes();
 }

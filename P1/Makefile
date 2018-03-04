@@ -63,7 +63,7 @@ lex.yy.o: Lexer.l
 HeapFile.o: HeapFile.h DBFile.h Record.h Schema.h File.h Comparison.h ComparisonEngine.h Defs.h
 	$(CC) -g -c HeapFile.cc
 
-SortedFile.o: SortedFile.h DBFile.h Record.h Schema.h File.h Comparison.h ComparisonEngine.h Defs.h BigQ.h
+SortedFile.o: SortedFile.h DBFile.h Record.h Schema.h File.h Comparison.h ComparisonEngine.h Defs.h BigQ.h HeapFile.h
 	$(CC) -g -c SortedFile.cc
 
 

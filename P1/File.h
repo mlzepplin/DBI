@@ -47,6 +47,7 @@ public:
 	//*************
 	int getNumRecords();
 	Record* peekLastRecord();
+	bool isEmpty(){return numRecs==0;}
 
 
 };
@@ -85,6 +86,8 @@ public:
 	int Close ();
 
 	off_t lastIndex() const { return curLength-2; }
+	//if file empty or not
+	bool isEmpty(){return curLength==0;}
 
 };
 
