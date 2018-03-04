@@ -138,25 +138,25 @@ int SortedFile::GetNext(Record &fetchme)
 
 int SortedFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
 {
-    startReading();
+    
     OrderMaker queryOrder, cnfOrder;
 
     //Build queryOrder by comparing sortOrder and cnfOrder
     OrderMaker::buildQueryOrder(sortOrder, cnf, queryOrder, cnfOrder);
-
+    
     ComparisonEngine comp;
 
     if (!binarySearch(fetchme, queryOrder, literal, cnfOrder, comp))
         return 0;
-
-    do
-    {
-        if (comp.Compare(&fetchme, &queryOrder, &literal, &cnfOrder))
-            return 0;
-        if (comp.Compare(&fetchme, &literal, &cnf))
-            return 1;
-    } while (GetNext(fetchme));
-    return 0;
+    
+    // do
+    // {
+    //     if (comp.Compare(&fetchme, &queryOrder, &literal, &cnfOrder))
+    //         return 0;
+    //     if (comp.Compare(&fetchme, &literal, &cnf))
+    //         return 1;
+    // } while (GetNext(fetchme));
+    return 1;
 }
 
 int SortedFile::Close()
@@ -184,22 +184,29 @@ int SortedFile::Close()
 
 int SortedFile::binarySearch(Record &fetchme, OrderMaker &queryOrder, Record &literal, OrderMaker &cnfOrder, ComparisonEngine &comp)
 {
+   
     if (!GetNext(fetchme))
         return 0;
+  
 
+    //Compares two records and returns -1,0,1 for  left less than, equals, greater than right
+    //If result is zero, we have found a match and don't need to search any further
     int result = comp.Compare(&fetchme, &queryOrder, &literal, &cnfOrder);
+    
     if (result > 0)
         return 0;
     else if (result == 0)
         return 1;
+        
 
-    off_t low = 0;
+    off_t low = currentPageOffset;
     off_t high = dFile.lastIndex();
     off_t mid = (low + high) / 2;
     for (; low < mid; mid = (low + high) / 2)
     {
         dFile.GetPage(&bufferPage, mid);
 
+        GetNext(fetchme);
         result = comp.Compare(&fetchme, &queryOrder, &literal, &cnfOrder);
         if (result < 0)
             low = mid;
@@ -207,18 +214,20 @@ int SortedFile::binarySearch(Record &fetchme, OrderMaker &queryOrder, Record &li
             high = mid - 1;
         else
             high = mid;
+
+   
     }
 
     dFile.GetPage(&bufferPage, low);
+    
     do
     {
         if (!GetNext(fetchme))
             return 0;
-result = comp.Compare(&fetchme, &queryOrder, &literal, &cnfOrder);
+        result = comp.Compare(&fetchme, &queryOrder, &literal, &cnfOrder);
     } while (result < 0);
     return result == 0;
 }
-
 
 void SortedFile::initPipes()
 {
