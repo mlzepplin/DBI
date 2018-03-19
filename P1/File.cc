@@ -1,5 +1,5 @@
 //adding for verbose file output
-//#define verbose
+// #define verbose
 
 #include "File.h"
 #include "TwoWayList.cc"
@@ -275,7 +275,7 @@ void File :: Open (int fileLen, char *fName) {
 	} else {
 		curLength = 0;
 	}
-
+	
 }
 
 

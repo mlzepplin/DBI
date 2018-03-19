@@ -8,16 +8,28 @@
 #include "Defs.h"
 
 #include <iostream>
+#include <fstream>
 
 HeapFile::HeapFile() : DB()
 {
     currentPageOffset = 0;
 }
-
+HeapFile::~HeapFile()
+{   database = NULL;
+    tblFile = NULL;
+    currentRecord = NULL;
+    delete(database);
+    delete(tblFile);
+    delete(currentRecord);
+}
 int HeapFile::Create(const char *fpath, void *startup)
 {
-    //zero parameter makes sure that the file is created
-    //and not opened
+    //generate auxfile name using f_path
+    //the auxFiles are specific to each table
+    tableName = getTableName(fpath);
+    binPath = getBinPath(fpath);
+    
+    //zero parameter makes sure that the file is created and not opened
     dFile.Open(0, (char *)fpath);
 
     return 1;
@@ -58,7 +70,19 @@ void HeapFile::MoveFirst()
 }
 
 int HeapFile::Close()
-{
+{   
+    //write buffer page to dFile if any records still left
+    if(bufferPage.getNumRecords()!=0){
+        dFile.AddPage(&bufferPage,currentPageOffset);
+        //don't increment currentPageOffset at close's end, as it would
+        //need to point to the last record, not to the empty space after it
+        bufferPage.EmptyItOut();
+    }
+    //write to meta file
+    auxFile.open (tableName+".meta");
+    auxFile <<"heap"<< "\n";
+    auxFile.close();
+
     return dFile.Close();
 }
 
@@ -137,13 +161,4 @@ int HeapFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
         }
     }
     return 0;
-}
-
-int HeapFile::initReadMode()
-{
-    //populates the bufferPage with the currentPage
-    if (currentPageOffset > dFile.GetLength())
-        return 0;
-    dFile.AddPage(&bufferPage, currentPageOffset);
-    return 1;
 }

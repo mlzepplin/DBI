@@ -5,6 +5,7 @@
 #define MAX_ORS 20
 
 #define PAGE_SIZE 131072
+#define PIPE_SIZE 1024
 
 enum Target
 {

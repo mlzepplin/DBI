@@ -9,14 +9,20 @@
 #include "Comparison.h"
 #include "ComparisonEngine.h"
 #include "fTypeEnum.h"
+#include <iostream>
+#include <unordered_map>
 
+using namespace std;
 // stub DBFile header..replace it with your own DBFile.h
 
 class DBFile
 {
+private:
+	unordered_map<fType, string> auxMap;
 
-  public:
+public:
 	DBFile();
+	~DBFile();
 
 	int Create(const char *fpath, fType file_type, void *startup);
 	int Open(const char *fpath);
@@ -29,10 +35,12 @@ class DBFile
 	int GetNext(Record &fetchme);
 	int GetNext(Record &fetchme, CNF &cnf, Record &literal);
 
-	//Added new methods
-	int initReadMode();
 
-  private:
+
+	std::string getTableName(const char* fpath);
+	void allocateMemToDB(fType f_type);
+
+private:
 	DB *db;
 };
 #endif
