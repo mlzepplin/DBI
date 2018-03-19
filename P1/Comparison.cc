@@ -165,7 +165,7 @@ void OrderMaker::buildQueryOrder(const OrderMaker &sortOrder, CNF &query, OrderM
 		{
 			queryOrder.whichAtts[queryOrder.numAtts] = i;
 			queryOrder.whichTypes[queryOrder.numAtts] = sortOrder.whichTypes[i];
-			//cnfOrder.whichAtts[cnfOrder.numAtts] = 
+			//cnfOrder.whichAtts[cnfOrder.numAtts] = attLocation;
 			//cnfOrder.whichTypes[cnfOrder.numAtts] = 
 			queryOrder.numAtts++;
 			//cnfOrder.numAtts++;

@@ -1,18 +1,18 @@
  
 %{
 
-	#include "ParseFunc.h" 
+	#include "ParseTree.h" 
 	#include <stdio.h>
 	#include <string.h>
 	#include <stdlib.h>
 	#include <iostream>
 
-	extern "C" int yylex();
-	extern "C" int yyparse();
-	extern "C" void yyerror(char *s);
+	extern "C" int yyfunclex();
+	extern "C" int yyfuncparse();
+	extern "C" void yyfuncerror(char *s);
   
 	// this is the final parse tree that is returned	
-	struct FuncOperator *final;	
+	struct FuncOperator *finalfunc;	
 
 %}
 
@@ -55,7 +55,7 @@ CompoundExp: SimpleExp Op CompoundExp
 	$$->right = $3;
 	$$->code = $2;	
 
-	final = $$;
+	finalfunc = $$;
 }
 
 | '(' CompoundExp ')' Op CompoundExp
@@ -66,14 +66,14 @@ CompoundExp: SimpleExp Op CompoundExp
 	$$->right = $5;
 	$$->code = $4;	
 
-	final = $$;
+	finalfunc = $$;
 }
 
 | '(' CompoundExp ')'
 {
 	$$ = $2;
 
-	final = $$;
+	finalfunc = $$;
 }
 
 | SimpleExp
@@ -83,7 +83,7 @@ CompoundExp: SimpleExp Op CompoundExp
 	$$->leftOperand = $1;
 	$$->right = NULL;	
 
-	final = $$;
+	finalfunc = $$;
 }
 
 | '-' CompoundExp
@@ -94,7 +94,7 @@ CompoundExp: SimpleExp Op CompoundExp
 	$$->right = NULL;	
 	$$->code = '-';
 
-	final = $$;
+	finalfunc = $$;
 }
 ;
 
