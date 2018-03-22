@@ -2,21 +2,30 @@
 #include "Record.h"
 #include "vector"
 
+
+//SelectFile
 SelectFile::SelectFile(){
 	numPages =1;
 }
-void* selectFileWorking(void *selectFile){
+
+void* SelectFile::selectFileHelper(){
 	//NOTE: No need of using the numPages memory cnostraint
 	//as we are select is purely streaing and non-blocking
-	SelectFile *SF = (SelectFile *)selectFile;
-	
-	while(SF->inFile->GetNext(*(SF->buffer),*(SF->selOp),*(SF->literal))==1){
-		 SF->outPipe->Insert(SF->buffer);
+	while(inFile->GetNext(*(buffer),*(selOp),*(literal))==1){
+		outPipe->Insert(buffer);
 	}
-	SF->outPipe->ShutDown();
+	outPipe->ShutDown();
 }
+
+void* SelectFile::selectFileStaticHelper(void *selectFile){
+	//required because initial thread call has to be static
+	//as if a thread helper function cannot have a this pointer pointing to it
+	//and non static class member functions have a hidden this parameter passed in
+	SelectFile *SF = (SelectFile *)selectFile;
+	return SF->selectFileHelper();
+}
+
 void SelectFile::Run (DBFile &inFile, Pipe &outPipe, CNF &selOp, Record &literal) {
-	
 
 	buffer  = new Record();
 	this->inFile = &inFile;
@@ -25,10 +34,10 @@ void SelectFile::Run (DBFile &inFile, Pipe &outPipe, CNF &selOp, Record &literal
 	this->literal = &literal;
 
 	//spawns worker thread and returns to the operation 
-	int w = pthread_create(&thread, NULL, selectFileWorking,(void *)this);
+	int w = pthread_create(&thread, NULL, selectFileStaticHelper,(void *)this);
 	if (w)
 	{
-		printf("Error creating worker thread! Return %d\n", w);
+		printf("Error creating selectFile thread! Return %d\n", w);
 		exit(-1);
 	}
 
@@ -42,24 +51,30 @@ void SelectFile::Use_n_Pages (int runlen) {
 	numPages = runlen;
 }
 
+
+//SelectPipe
 SelectPipe::SelectPipe(){
 	numPages =1;
 }
-void* selectPipeWorking(void *selectPipe){
+void*SelectPipe::selectPipeHelper(){
 	//NOTE: No need of using the numPages memory cnostraint
 	//as we are select is purely streaing and non-blocking
-	SelectPipe *SP = (SelectPipe *)selectPipe;
 	ComparisonEngine comp;
-	
-	while(SP->inPipe->Remove(SP->buffer)){
-		 //if comparison engine's output matches
-		 if (comp.Compare(SP->buffer, SP->literal, SP->selOp))
+	while(inPipe->Remove(buffer)){
+
+		 if (comp.Compare(buffer, literal, selOp))
         {
-           SP->outPipe->Insert(SP->buffer);
+           outPipe->Insert(buffer);
         }
 		 
 	}
-	SP->outPipe->ShutDown();
+	outPipe->ShutDown();
+}
+void*SelectPipe::selectPipeStaticHelper(void *selectPipe){
+	
+	SelectPipe *SP = (SelectPipe *)selectPipe;
+	SP->selectPipeHelper();
+	
 }
 void SelectPipe::Run (Pipe &inPipe, Pipe &outPipe, CNF &selOp, Record &literal) {
 	
@@ -71,10 +86,10 @@ void SelectPipe::Run (Pipe &inPipe, Pipe &outPipe, CNF &selOp, Record &literal) 
 	this->literal = &literal;
 
 	//spawns worker thread and returns to the operation 
-	int w = pthread_create(&thread, NULL, selectPipeWorking,(void *)this);
+	int w = pthread_create(&thread, NULL, selectPipeStaticHelper,(void *)this);
 	if (w)
 	{
-		printf("Error creating worker thread! Return %d\n", w);
+		printf("Error creating selectPipe thread! Return %d\n", w);
 		exit(-1);
 	}
 

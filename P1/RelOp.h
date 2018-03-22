@@ -20,17 +20,18 @@ class SelectFile : public RelationalOp {
 
 	private:
 	pthread_t thread;
-
-	public:
 	int numPages;
 	DBFile *inFile;
 	Pipe *outPipe;
 	CNF *selOp;
 	Record *literal;
 	Record *buffer;
+
+	public:
 	SelectFile();
 	void Run (DBFile &inFile, Pipe &outPipe, CNF &selOp, Record &literal);
-	//void *selectFileWorking(void *selectFile);
+	static void *selectFileStaticHelper(void *selectFile);
+	void *selectFileHelper();
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
 
@@ -40,15 +41,19 @@ class SelectPipe : public RelationalOp {
 
 	private:
 	pthread_t thread;
-	public:
 	Pipe *inPipe;
 	Pipe *outPipe;
 	CNF *selOp;
 	Record *literal;
 	Record *buffer;
 	int numPages;
+
+	public:
+	
 	SelectPipe();
 	void Run (Pipe &inPipe, Pipe &outPipe, CNF &selOp, Record &literal);
+	static void *selectPipeStaticHelper(void *selectFile);
+	void *selectPipeHelper();
 	void WaitUntilDone();
 	void Use_n_Pages (int n);
 };
