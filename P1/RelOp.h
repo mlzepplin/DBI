@@ -19,22 +19,38 @@ class RelationalOp {
 class SelectFile : public RelationalOp { 
 
 	private:
-	// pthread_t thread;
-	// Record *buffer;
+	pthread_t thread;
 
 	public:
-
+	int numPages;
+	DBFile *inFile;
+	Pipe *outPipe;
+	CNF *selOp;
+	Record *literal;
+	Record *buffer;
+	SelectFile();
 	void Run (DBFile &inFile, Pipe &outPipe, CNF &selOp, Record &literal);
+	//void *selectFileWorking(void *selectFile);
 	void WaitUntilDone ();
 	void Use_n_Pages (int n);
 
 };
 
 class SelectPipe : public RelationalOp {
+
+	private:
+	pthread_t thread;
 	public:
-	void Run (Pipe &inPipe, Pipe &outPipe, CNF &selOp, Record &literal) { }
-	void WaitUntilDone () { }
-	void Use_n_Pages (int n) { }
+	Pipe *inPipe;
+	Pipe *outPipe;
+	CNF *selOp;
+	Record *literal;
+	Record *buffer;
+	int numPages;
+	SelectPipe();
+	void Run (Pipe &inPipe, Pipe &outPipe, CNF &selOp, Record &literal);
+	void WaitUntilDone();
+	void Use_n_Pages (int n);
 };
 class Project : public RelationalOp { 
 	public:

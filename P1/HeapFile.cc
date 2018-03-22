@@ -152,9 +152,10 @@ int HeapFile::GetNext(Record &fetchme, CNF &cnf, Record &literal)
 
     ComparisonEngine comp;
 
+    //GetNext already populates fetchme
     while (GetNext(fetchme))
     {
-        //Compare already populates fetchme
+        
         if (comp.Compare(&fetchme, &literal, &cnf))
         {
             return 1;
