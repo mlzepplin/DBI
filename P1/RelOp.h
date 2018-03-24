@@ -5,6 +5,7 @@
 #include "DBFile.h"
 #include "Record.h"
 #include "Function.h"
+#include "BigQ.h"
 
 class RelationalOp
 {
@@ -77,10 +78,19 @@ public:
 
 class DuplicateRemoval : public RelationalOp
 {
+private:
+	pthread_t thread;
+	Pipe *inPipe;
+	Pipe *outPipe;
+	Schema *schema;
+	int numPages;
+
 public:
-	void Run(Pipe &inPipe, Pipe &outPipe, Schema &mySchema) {}
-	void WaitUntilDone() {}
-	void Use_n_Pages(int n) {}
+	void Run(Pipe &inPipe, Pipe &outPipe, Schema &mySchema);
+	static void *duplicateRemovalStaticHelper(void *duplicateRemoval);
+	void *duplicateRemovalHelper();
+	void WaitUntilDone();
+	void Use_n_Pages(int n);
 };
 
 class Sum : public RelationalOp

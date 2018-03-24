@@ -157,3 +157,58 @@ void Sum::Use_n_Pages(int runlen)
 {
 	numPages = runlen;
 }
+
+void *DuplicateRemoval::duplicateRemovalHelper()
+{
+	OrderMaker sortOrder(schema);
+	Pipe sortedPipe(PIPE_SIZE);
+	BigQ bigQ(*inPipe, sortedPipe, sortOrder, numPages);
+
+	Record buffer, next;
+	ComparisonEngine compEngine;
+
+	if (sortedPipe.Remove(&buffer))
+	{
+		while (sortedPipe.Remove(&next))
+		{
+			if (compEngine.Compare(&buffer, &next, &sortOrder))
+			{
+				outPipe->Insert(&buffer);
+				buffer.Consume(&next);
+			}
+		}
+		outPipe->Insert(&buffer);
+	}
+	outPipe->ShutDown();
+}
+
+void *DuplicateRemoval::duplicateRemovalStaticHelper(void *duplicateRemoval)
+{
+
+	DuplicateRemoval *dupRemoval = (DuplicateRemoval *)duplicateRemoval;
+	dupRemoval->duplicateRemovalHelper();
+}
+
+void DuplicateRemoval::Run(Pipe &inPipe, Pipe &outPipe, Schema &mySchema)
+{
+	this->inPipe = &inPipe;
+	this->outPipe = &outPipe;
+	this->schema = &mySchema;
+
+	int w = pthread_create(&thread, NULL, duplicateRemovalStaticHelper, (void *)this);
+	if (w)
+	{
+		printf("Error creating duplicateRemoval thread! Return %d\n", w);
+		exit(-1);
+	}
+}
+
+void DuplicateRemoval::WaitUntilDone()
+{
+	pthread_join(thread, NULL);
+}
+
+void DuplicateRemoval::Use_n_Pages(int runlen)
+{
+	numPages = runlen;
+}
