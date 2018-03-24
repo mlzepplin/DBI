@@ -54,7 +54,7 @@ private:
 public:
 	SelectPipe();
 	void Run(Pipe &inPipe, Pipe &outPipe, CNF &selOp, Record &literal);
-	static void *selectPipeStaticHelper(void *selectFile);
+	static void *selectPipeStaticHelper(void *selectPipe);
 	void *selectPipeHelper();
 	void WaitUntilDone();
 	void Use_n_Pages(int n);
@@ -62,14 +62,27 @@ public:
 
 class Project : public RelationalOp
 {
+private:
+	pthread_t thread;
+	Pipe *inPipe;
+	Pipe *outPipe;
+	int *keepMe;
+	int numAttsInput;
+	int numAttsOutput;
+	int numPages;
 public:
-	void Run(Pipe &inPipe, Pipe &outPipe, int *keepMe, int numAttsInput, int numAttsOutput) {}
-	void WaitUntilDone() {}
-	void Use_n_Pages(int n) {}
+	void Run(Pipe &inPipe, Pipe &outPipe, int *keepMe, int numAttsInput, int numAttsOutput);
+	void WaitUntilDone();
+	void Use_n_Pages(int n);
+	static void *projectStaticHelper(void *project);
+	void *projectHelper();
 };
 
 class Join : public RelationalOp
 {
+private: 
+
+
 public:
 	void Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal) {}
 	void WaitUntilDone() {}
