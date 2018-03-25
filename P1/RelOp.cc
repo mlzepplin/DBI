@@ -213,13 +213,13 @@ void DuplicateRemoval::Use_n_Pages(int runlen)
 	numPages = runlen;
 }
 
-void Project::Run(Pipe &inPipe, Pipe &outPipe, int *keepMe, int numAttsInput, int numAttsOutput){
+void Project::Run(Pipe &inPipe, Pipe &outPipe, int *keepMe, int numAttsInput, int numAttsOutput)
+{
 	this->inPipe = &inPipe;
 	this->outPipe = &outPipe;
 	this->keepMe = keepMe;
 	this->numAttsInput = numAttsInput;
 	this->numAttsOutput = numAttsOutput;
-
 	int w = pthread_create(&thread, NULL, projectStaticHelper, (void *)this);
 	if (w)
 	{
@@ -228,26 +228,31 @@ void Project::Run(Pipe &inPipe, Pipe &outPipe, int *keepMe, int numAttsInput, in
 	}
 }
 
-void* Project::projectStaticHelper(void *project){
+void *Project::projectStaticHelper(void *project)
+{
 	Project *P = (Project *)project;
 	P->projectHelper();
 }
-void* Project::projectHelper(){
+void *Project::projectHelper()
+{
 	//NOTE: No need of using the numPages memory cnostraint
 	//as we are project is purely streaing and non-blocking
 	Record buildMe;
+	Schema mySchema("catalog", "part");
+	//Schema("catalog", numAttsOutput, keepMe);
+	int a = 0;
 	while (inPipe->Remove(&buildMe))
 	{
-		buildMe.Project(keepMe,numAttsOutput,numAttsInput);
+		buildMe.Project(keepMe, numAttsOutput, numAttsInput);
 		outPipe->Insert(&buildMe);
-		
 	}
 	outPipe->ShutDown();
-
-}	
-void Project::WaitUntilDone(){
+}
+void Project::WaitUntilDone()
+{
 	pthread_join(thread, NULL);
 }
-void Project::Use_n_Pages(int n){
+void Project::Use_n_Pages(int n)
+{
 	numPages = n;
 }
