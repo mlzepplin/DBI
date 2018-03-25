@@ -518,7 +518,7 @@ void Record::Write(FILE *outFile, Schema *mySchema)
 		if (atts[i].myType == Int)
 		{
 			int *intAttptr = (int *)&(bits[ptr]);
-			fprintf(outFile, "%f", *intAttptr);
+			fprintf(outFile, "%d", *intAttptr);
 		}
 		else if (atts[i].myType == Double)
 		{
@@ -531,11 +531,11 @@ void Record::Write(FILE *outFile, Schema *mySchema)
 			fprintf(outFile, "%s", strAttptr);
 		}
 
-		if (i != n - 1)
+		if (i != numAtts - 1)
 		{
 			cout << ", ";
 		}
 	}
 
-	fprintf(file, "\n");
+	fprintf(outFile, "\n");
 }
