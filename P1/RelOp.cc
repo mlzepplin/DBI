@@ -1,3 +1,4 @@
+
 #include "RelOp.h"
 #include "Record.h"
 #include "vector"
@@ -248,11 +249,54 @@ void *Project::projectHelper()
 	}
 	outPipe->ShutDown();
 }
+
 void Project::WaitUntilDone()
 {
 	pthread_join(thread, NULL);
 }
+
 void Project::Use_n_Pages(int n)
 {
 	numPages = n;
+}
+
+void *WriteOut::writeOutHelper()
+{
+	Record buffer;
+
+	while (inPipe->Remove(&buffer))
+	{
+		buffer.Write(outputFile, schema);
+	}
+}
+
+void *WriteOut::writeOutStaticHelper(void *writeOut)
+{
+
+	WriteOut *wo = (WriteOut *)writeOut;
+	wo->writeOutHelper();
+}
+
+void WriteOut::Run(Pipe &inPipe, FILE *outFile, Schema &mySchema)
+{
+	this->inPipe = &inPipe;
+	this->outputFile = outFile;
+	this->schema = &mySchema;
+
+	int w = pthread_create(&thread, NULL, writeOutStaticHelper, (void *)this);
+	if (w)
+	{
+		printf("Error creating writeOut thread! Return %d\n", w);
+		exit(-1);
+	}
+}
+
+void WriteOut::WaitUntilDone()
+{
+	pthread_join(thread, NULL);
+}
+
+void WriteOut::Use_n_Pages(int runlen)
+{
+	numPages = runlen;
 }

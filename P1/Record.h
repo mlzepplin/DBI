@@ -72,6 +72,9 @@ class Record
 	// prints the contents of the record; this requires
 	// that the schema also be given so that the record can be interpreted
 	void Print(Schema *mySchema);
+
+	//Write record to a file
+	void Write(FILE *file, Schema *mySchema);
 };
 
 template <class T> // T should be int or double

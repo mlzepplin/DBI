@@ -137,7 +137,7 @@ void q2()
 	SF_p.Run(dbf_p, _p, cnf_p, lit_p);
 	P_p.Run(_p, _out, keepMe, numAttsIn, numAttsOut);
 
-	Attribute att3[] = {IA, SA, DA};
+		Attribute att3[] = {IA, SA, DA};
 
 	P_p.WaitUntilDone();
 	Schema out_sch("out_sch", numAttsOut, att3);
@@ -387,8 +387,6 @@ int main(int argc, char *argv[])
 	void (*query_ptr[])() = {&q1, &q2, &q3, &q4, &q5, &q6, &q7, &q8};
 	void (*query)();
 	int qindx = atoi(argv[1]);
-	//int qindx = 2;
-	cout << "hail" << endl;
 	if (qindx > 0 && qindx < 9)
 	{
 		setup();
