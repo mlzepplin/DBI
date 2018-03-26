@@ -137,7 +137,7 @@ void q2()
 	SF_p.Run(dbf_p, _p, cnf_p, lit_p);
 	P_p.Run(_p, _out, keepMe, numAttsIn, numAttsOut);
 
-		Attribute att3[] = {IA, SA, DA};
+	Attribute att3[] = {IA, SA, DA};
 
 	P_p.WaitUntilDone();
 	Schema out_sch("out_sch", numAttsOut, att3);
@@ -256,12 +256,12 @@ void q5()
 	SF_ps.Run(dbf_ps, _ps, cnf_ps, lit_ps);
 	P_ps.Run(_ps, __ps, keepMe, numAttsIn, numAttsOut);
 	D.Run(__ps, ___ps, __ps_sch);
-	// W.Run (___ps, writefile, __ps_sch);
+	W.Run(___ps, writefile, __ps_sch);
 
 	SF_ps.WaitUntilDone();
 	P_ps.WaitUntilDone();
 	D.WaitUntilDone();
-	// W.WaitUntilDone ();
+	W.WaitUntilDone();
 
 	cout << " query5 finished..output written to file " << fwpath << "\n";
 }

@@ -2,6 +2,7 @@
 #include "RelOp.h"
 #include "Record.h"
 #include "vector"
+#include "HeapFile.h"
 
 //SelectFile
 SelectFile::SelectFile()
@@ -163,16 +164,24 @@ void *DuplicateRemoval::duplicateRemovalHelper()
 {
 	OrderMaker sortOrder(schema);
 	Pipe sortedPipe(PIPE_SIZE);
+
+	//first shut input pipe, so bigQ can lock on it
+	//inPipe->ShutDown();
+	//call BigQ to put the sorted output into the outPipe/sortedPipe
 	BigQ bigQ(*inPipe, sortedPipe, sortOrder, numPages);
+
+	HeapFile tempFile;
+	tempFile.Open("llllaaaa.bin");
 
 	Record buffer, next;
 	ComparisonEngine compEngine;
 
-	if (sortedPipe.Remove(&buffer))
+	if (tempFile.GetNext(buffer))
 	{
-		while (sortedPipe.Remove(&next))
+
+		while (tempFile.GetNext(next))
 		{
-			if (compEngine.Compare(&buffer, &next, &sortOrder))
+			if (compEngine.Compare(&buffer, &next, &sortOrder) != 0)
 			{
 				outPipe->Insert(&buffer);
 				buffer.Consume(&next);

@@ -12,12 +12,11 @@
 class HeapFile : public DB
 {
 
-  private:
+private:
 	File dFile;
 	off_t currentPageOffset;
 
-
-  public:
+public:
 	HeapFile();
 	~HeapFile();
 

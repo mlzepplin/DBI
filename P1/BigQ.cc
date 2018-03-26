@@ -4,6 +4,7 @@
 #include "list"
 #include "queue"
 #include "algorithm"
+#include "HeapFile.h"
 //#define printRecs
 using namespace std;
 
@@ -12,18 +13,18 @@ void *working(void *big)
 	BigQ *bigQ = (BigQ *)big;
 
 	Record temp;
-	
+
 	int currentRunSizeInBytes = 0;
 	int totalRecords = 0;
 
 	//stores all the runs
-	vector<vector<Record *> > runsVector;
+	vector<vector<Record *>> runsVector;
 	vector<Record *> currentRun;
 
 	//PAGE_SIZE is sum of the twoWayList of records and 2 integer variables
 	int runSizeInBytes = (PAGE_SIZE - 2 * sizeof(int)) * bigQ->runLength;
 
-    // read data from in pipe sort them into runlen pages
+	// read data from in pipe sort them into runlen pages
 	while (bigQ->inPipe->Remove(&temp))
 	{
 		totalRecords++;
@@ -59,13 +60,17 @@ void *working(void *big)
 
 	//pair holds a record and the runNumber where that record came from
 	//so that we can keep track of which run's head to use for the new insert into pq
-	priority_queue<pair<int, Record *>, vector<pair<int, Record *> >, CompPair> pq(CompPair(bigQ->sortOrder));
+	priority_queue<pair<int, Record *>, vector<pair<int, Record *>>, CompPair> pq(CompPair(bigQ->sortOrder));
 
 	//init pq with the first element from each run
 	for (int i = 0; i < runsVector.size(); i++)
 	{
-		pq.push(std::make_pair(i, runsVector[i].back()));
-		runsVector[i].pop_back();
+
+		if (!runsVector[i].empty())
+		{
+			pq.push(std::make_pair(i, runsVector[i].back()));
+			runsVector[i].pop_back();
+		}
 	}
 
 	for (int i = 0; i < totalRecords; i++)
@@ -88,7 +93,6 @@ void *working(void *big)
 		}
 	}
 
-	
 		//TO PONDER OVER - WHY IT DIDN'T WORK
 		// for (vector< Record* > run : runsVector){
 
@@ -97,7 +101,7 @@ void *working(void *big)
 		// }
 #ifdef printRecs
 	int runNum = 0;
-	Schema mySchema ("catalog", "nation");
+	Schema mySchema("catalog", "nation");
 	for (vector<Record *> run : runsVector)
 	{
 		cout << "run: " << runNum << endl;
@@ -106,16 +110,28 @@ void *working(void *big)
 			s->Print(&mySchema);
 		}
 		runNum++;
-		cout << "----------------------------------------------------------------" << endl;
+		<< "----------------------------------------------------------------" << endl;
 	}
 #endif
 
 	bigQ->outPipe->ShutDown();
 }
 
+void *outPipeConsuming(void *big)
+{
+	BigQ *bigQ = (BigQ *)big;
+
+	Record temp;
+	HeapFile tempFile;
+	tempFile.Create("llllaaaa.bin", NULL);
+	while (bigQ->outPipe->Remove(&temp))
+	{
+		tempFile.Add(temp);
+	}
+	tempFile.Close();
+}
 BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 {
-	
 
 	inPipe = &in;
 	outPipe = &out;
@@ -124,7 +140,7 @@ BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 	runLength = runlen;
 
 	pthread_t worker;
-
+	pthread_t outPipeConsumer;
 	//create worker thread
 	int w = pthread_create(&worker, NULL, working, (void *)this);
 	if (w)
@@ -132,13 +148,11 @@ BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 		printf("Error creating worker thread! Return %d\n", w);
 		exit(-1);
 	}
-
+	int c = pthread_create(&outPipeConsumer, NULL, outPipeConsuming, (void *)this);
 	//wait for thread to finish, then release thread stack
 	pthread_join(worker, NULL);
 
-	// finally shut down the out pipe
-	//release lock on the out pipe, only when completely done
-	//out.ShutDown();
+	pthread_join(outPipeConsumer, NULL);
 }
 
 BigQ::~BigQ()
