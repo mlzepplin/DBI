@@ -13,7 +13,7 @@
                 "5"
             ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/P1/",
             "environment": [],
             "externalConsole": true,
             "MIMode": "gdb",
