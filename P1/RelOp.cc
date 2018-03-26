@@ -11,8 +11,8 @@ SelectFile::SelectFile()
 
 void *SelectFile::selectFileHelper()
 {
-	//NOTE: No need of using the numPages memory cnostraint
-	//as we are select is purely streaing and non-blocking
+	//NOTE: No need of using the numPages memory constraint
+	//as we are select is purely streaming and non-blocking
 	while (inFile->GetNext(*(buffer), *(selOp), *(literal)) == 1)
 	{
 		outPipe->Insert(buffer);
@@ -221,6 +221,7 @@ void Project::Run(Pipe &inPipe, Pipe &outPipe, int *keepMe, int numAttsInput, in
 	this->keepMe = keepMe;
 	this->numAttsInput = numAttsInput;
 	this->numAttsOutput = numAttsOutput;
+
 	int w = pthread_create(&thread, NULL, projectStaticHelper, (void *)this);
 	if (w)
 	{
@@ -297,6 +298,42 @@ void WriteOut::WaitUntilDone()
 }
 
 void WriteOut::Use_n_Pages(int runlen)
+{
+	numPages = runlen;
+}
+
+void *Join::joinHelper()
+{
+}
+
+void *Join::joinStaticHelper(void *join)
+{
+	Join *j = (Join *)join;
+	j->joinHelper();
+}
+
+void Join::Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal)
+{
+	this->leftInPipe = &inPipeL;
+	this->rightInPipe = &inPipeR;
+	this->outPipe = &outPipe;
+	this->selOp = &selOp;
+	this->literal = &literal;
+
+	int w = pthread_create(&thread, NULL, joinStaticHelper, (void *)this);
+	if (w)
+	{
+		printf("Error creating join thread! Return %d\n", w);
+		exit(-1);
+	}
+}
+
+void Join::WaitUntilDone()
+{
+	pthread_join(thread, NULL);
+}
+
+void Join::Use_n_Pages(int runlen)
 {
 	numPages = runlen;
 }

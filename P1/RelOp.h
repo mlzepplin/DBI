@@ -9,7 +9,7 @@
 
 class RelationalOp
 {
-  public:
+public:
 	// blocks the caller until the particular relational operator
 	// has run to completion
 	virtual void WaitUntilDone() = 0;
@@ -21,7 +21,7 @@ class RelationalOp
 class SelectFile : public RelationalOp
 {
 
-  private:
+private:
 	pthread_t thread;
 	int numPages;
 	DBFile *inFile;
@@ -30,7 +30,7 @@ class SelectFile : public RelationalOp
 	Record *literal;
 	Record *buffer;
 
-  public:
+public:
 	SelectFile();
 	void Run(DBFile &inFile, Pipe &outPipe, CNF &selOp, Record &literal);
 	static void *selectFileStaticHelper(void *selectFile);
@@ -42,7 +42,7 @@ class SelectFile : public RelationalOp
 class SelectPipe : public RelationalOp
 {
 
-  private:
+private:
 	pthread_t thread;
 	Pipe *inPipe;
 	Pipe *outPipe;
@@ -51,7 +51,7 @@ class SelectPipe : public RelationalOp
 	Record *buffer;
 	int numPages;
 
-  public:
+public:
 	SelectPipe();
 	void Run(Pipe &inPipe, Pipe &outPipe, CNF &selOp, Record &literal);
 	static void *selectPipeStaticHelper(void *selectPipe);
@@ -62,7 +62,7 @@ class SelectPipe : public RelationalOp
 
 class Project : public RelationalOp
 {
-  private:
+private:
 	pthread_t thread;
 	Pipe *inPipe;
 	Pipe *outPipe;
@@ -71,7 +71,7 @@ class Project : public RelationalOp
 	int numAttsOutput;
 	int numPages;
 
-  public:
+public:
 	void Run(Pipe &inPipe, Pipe &outPipe, int *keepMe, int numAttsInput, int numAttsOutput);
 	void WaitUntilDone();
 	void Use_n_Pages(int n);
@@ -81,23 +81,33 @@ class Project : public RelationalOp
 
 class Join : public RelationalOp
 {
-  private:
-  public:
-	void Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal) {}
-	void WaitUntilDone() {}
-	void Use_n_Pages(int n) {}
+private:
+	pthread_t thread;
+	int numPages;
+	Pipe *leftInPipe;
+	Pipe *rightInPipe;
+	Pipe *outPipe;
+	CNF *selOp;
+	Record *literal;
+
+public:
+	void Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);
+	static void *joinStaticHelper(void *join);
+	void *joinHelper();
+	void WaitUntilDone();
+	void Use_n_Pages(int n);
 };
 
 class DuplicateRemoval : public RelationalOp
 {
-  private:
+private:
 	pthread_t thread;
 	Pipe *inPipe;
 	Pipe *outPipe;
 	Schema *schema;
 	int numPages;
 
-  public:
+public:
 	void Run(Pipe &inPipe, Pipe &outPipe, Schema &mySchema);
 	static void *duplicateRemovalStaticHelper(void *duplicateRemoval);
 	void *duplicateRemovalHelper();
@@ -108,14 +118,14 @@ class DuplicateRemoval : public RelationalOp
 class Sum : public RelationalOp
 {
 
-  private:
+private:
 	pthread_t thread;
 	Pipe *inPipe;
 	Pipe *outPipe;
 	Function *computeMe;
 	int numPages;
 
-  public:
+public:
 	void Run(Pipe &inPipe, Pipe &outPipe, Function &computeMe);
 	static void *sumStaticHelper(void *sum);
 	void *sumHelper();
@@ -128,7 +138,7 @@ class Sum : public RelationalOp
 
 class GroupBy : public RelationalOp
 {
-  public:
+public:
 	void Run(Pipe &inPipe, Pipe &outPipe, OrderMaker &groupAtts, Function &computeMe) {}
 	void WaitUntilDone() {}
 	void Use_n_Pages(int n) {}
@@ -136,14 +146,14 @@ class GroupBy : public RelationalOp
 
 class WriteOut : public RelationalOp
 {
-  private:
+private:
 	pthread_t thread;
 	Pipe *inPipe;
 	FILE *outputFile;
 	Schema *schema;
 	int numPages;
 
-  public:
+public:
 	void Run(Pipe &inPipe, FILE *outFile, Schema &mySchema);
 	static void *writeOutStaticHelper(void *writeOut);
 	void *writeOutHelper();
