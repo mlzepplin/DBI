@@ -302,8 +302,36 @@ void WriteOut::Use_n_Pages(int runlen)
 	numPages = runlen;
 }
 
+void Join::sortMergeJoin(Pipe *leftPipe, OrderMaker *leftOrder, Pipe *rightPipe, OrderMaker *rightOrder, Pipe *outPipe, CNF *cnf, Record *literal, size_t runLength)
+{
+	ComparisonEngine compEngine;
+	//output pipes for the two input pipes
+	Pipe leftSortedPipe(PIPE_SIZE);
+	Pipe rightSortedPipe(PIPE_SIZE);
+
+	//BigQ's to store input from the two inout pipes
+	BigQ leftBigQ(*leftPipe, leftSortedPipe, *leftOrder, runLength);
+	BigQ rightBigQ(*rightPipe, rightSortedPipe, *rightOrder, runLength);
+
+	//TODO Implement merge join
+}
+
 void *Join::joinHelper()
 {
+	OrderMaker leftOrder;
+	OrderMaker rightOrder;
+
+	//use sortMergeJoin if the cnf has an equality check, otherwise use block-nested loops join
+	//GetSortOrders returns a 0 if and only if it is impossible to determine
+	//an acceptable ordering for the given comparison
+	if (selOp->GetSortOrders(leftOrder, rightOrder))
+	{
+		sortMergeJoin(leftInPipe, &leftOrder, rightInPipe, &rightOrder, outPipe, selOp, literal, numPages);
+	}
+	else
+	{
+		//nested loop join
+	}
 }
 
 void *Join::joinStaticHelper(void *join)
@@ -334,6 +362,39 @@ void Join::WaitUntilDone()
 }
 
 void Join::Use_n_Pages(int runlen)
+{
+	numPages = runlen;
+}
+
+void *GroupBy::groupbyHelper()
+{
+}
+
+void *GroupBy::groupbyStaticHelper(void *groupBy)
+{
+}
+
+void GroupBy::Run(Pipe &inPipe, Pipe &outPipe, OrderMaker &groupAtts, Function &computeMe)
+{
+	this->inPipe = &inPipe;
+	this->outPipe = &outPipe;
+	this->groupAtts = &groupAtts;
+	this->computeMe = &computeMe;
+
+	int w = pthread_create(&thread, NULL, groupbyStaticHelper, (void *)this);
+	if (w)
+	{
+		printf("Error creating groupby thread! Return %d\n", w);
+		exit(-1);
+	}
+}
+
+void GroupBy::WaitUntilDone()
+{
+	pthread_join(thread, NULL);
+}
+
+void GroupBy::Use_n_Pages(int runlen)
 {
 	numPages = runlen;
 }
