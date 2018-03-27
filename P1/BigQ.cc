@@ -117,19 +117,19 @@ void *working(void *big)
 	bigQ->outPipe->ShutDown();
 }
 
-void *outPipeConsuming(void *big)
-{
-	BigQ *bigQ = (BigQ *)big;
+// void *outPipeConsuming(void *big)
+// {
+// 	BigQ *bigQ = (BigQ *)big;
 
-	Record temp;
-	HeapFile tempFile;
-	tempFile.Create("llllaaaa.bin", NULL);
-	while (bigQ->outPipe->Remove(&temp))
-	{
-		tempFile.Add(temp);
-	}
-	tempFile.Close();
-}
+// 	Record temp;
+// 	HeapFile tempFile;
+// 	tempFile.Create("llllaaaa.bin", NULL);
+// 	while (bigQ->outPipe->Remove(&temp))
+// 	{
+// 		tempFile.Add(temp);
+// 	}
+// 	tempFile.Close();
+// }
 BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 {
 
@@ -139,8 +139,8 @@ BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 	comparator.sortOrder = sortOrder;
 	runLength = runlen;
 
-	pthread_t worker;
-	pthread_t outPipeConsumer;
+	
+	//pthread_t outPipeConsumer;
 	//create worker thread
 	int w = pthread_create(&worker, NULL, working, (void *)this);
 	if (w)
@@ -148,11 +148,14 @@ BigQ ::BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 		printf("Error creating worker thread! Return %d\n", w);
 		exit(-1);
 	}
-	int c = pthread_create(&outPipeConsumer, NULL, outPipeConsuming, (void *)this);
+	//int c = pthread_create(&outPipeConsumer, NULL, outPipeConsuming, (void *)this);
 	//wait for thread to finish, then release thread stack
+	//pthread_join(outPipeConsumer, NULL);
+}
+void BigQ::WaitUntilDone(){
+	
 	pthread_join(worker, NULL);
 
-	pthread_join(outPipeConsumer, NULL);
 }
 
 BigQ::~BigQ()

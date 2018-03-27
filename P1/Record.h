@@ -75,6 +75,8 @@ class Record
 
 	//Write record to a file
 	void Write(FILE *file, Schema *mySchema);
+
+	int getNumAtts();
 };
 
 template <class T> // T should be int or double

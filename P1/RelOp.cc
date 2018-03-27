@@ -169,17 +169,14 @@ void *DuplicateRemoval::duplicateRemovalHelper()
 	//inPipe->ShutDown();
 	//call BigQ to put the sorted output into the outPipe/sortedPipe
 	BigQ bigQ(*inPipe, sortedPipe, sortOrder, numPages);
-
-	HeapFile tempFile;
-	tempFile.Open("llllaaaa.bin");
-
+	
 	Record buffer, next;
 	ComparisonEngine compEngine;
 
-	if (tempFile.GetNext(buffer))
+	if (sortedPipe.Remove(&buffer))
 	{
 
-		while (tempFile.GetNext(next))
+		while (sortedPipe.Remove(&next))
 		{
 			if (compEngine.Compare(&buffer, &next, &sortOrder) != 0)
 			{
@@ -189,6 +186,7 @@ void *DuplicateRemoval::duplicateRemovalHelper()
 		}
 		outPipe->Insert(&buffer);
 	}
+	bigQ.WaitUntilDone();
 	outPipe->ShutDown();
 }
 
@@ -322,6 +320,50 @@ void Join::sortMergeJoin(Pipe *leftPipe, OrderMaker *leftOrder, Pipe *rightPipe,
 	BigQ leftBigQ(*leftPipe, leftSortedPipe, *leftOrder, runLength);
 	BigQ rightBigQ(*rightPipe, rightSortedPipe, *rightOrder, runLength);
 
+	Record *leftRecord, *rightRecord, mergedRecord;
+
+	int l = leftPipe->Remove(leftRecord);
+	int r = rightPipe->Remove(rightRecord);
+
+
+	while(l && r){
+		
+		int c = compEngine.Compare(leftRecord,leftOrder,rightRecord,rightOrder);
+		if(c==0){
+			//create a merge record
+			int leftNumAtts = leftRecord->getNumAtts();
+			int rightNumAtts = rightRecord->getNumAtts();
+			int mergedNumAtts = leftNumAtts + rightNumAtts;
+			int *attsToKeep = new int[leftNumAtts + rightNumAtts];
+
+			for (int i=0; i<leftNumAtts; i++){
+				attsToKeep[i] = i;
+			}
+
+			for (int i=0; i<rightNumAtts; i++) {
+				attsToKeep[i] = i+leftNumAtts;
+			}
+			mergedRecord.MergeRecords(leftRecord, rightRecord, leftNumAtts, rightNumAtts, attsToKeep, mergedNumAtts, leftNumAtts);
+			outPipe->Insert(&mergedRecord);
+
+			l = leftPipe->Remove(leftRecord);
+			r = rightPipe->Remove(rightRecord);
+		}
+		else if(c==-1){
+			//left rec is less
+			l = leftPipe->Remove(leftRecord);
+		}
+		else{
+			//right rec is less
+			r = rightPipe->Remove(rightRecord);
+		}
+
+	}
+
+
+
+	
+
 	//TODO Implement merge join
 }
 
@@ -377,10 +419,52 @@ void Join::Use_n_Pages(int runlen)
 
 void *GroupBy::groupbyHelper()
 {
+	
+	Pipe sortedPipe(PIPE_SIZE);
+
+	//call BigQ to put the sorted output into the outPipe/sortedPipe
+	BigQ bigQ(*inPipe, sortedPipe, *groupAtts, numPages);
+
+	HeapFile tempFile;
+	tempFile.Open("llllaaaa.bin");
+	
+
+	Record buffer, next;
+	ComparisonEngine compEngine;
+
+	if (tempFile.GetNext(buffer))
+	{
+
+		while (tempFile.GetNext(next))
+		{
+			if (compEngine.Compare(&buffer, &next, groupAtts) != 0)
+			{
+				outPipe->Insert(&buffer);
+				buffer.Consume(&next);
+			}
+
+	// 		if (computeMe->returnsInt == 1){
+	// 	groupBySum<int>(inPipe, outPipe, computeMe);
+	// }
+	// else{
+	// 	groupBySum<double>(inPipe, outPipe, computeMe);
+	// }
+
+	
+
+		}
+		outPipe->Insert(&buffer);
+	}
+	outPipe->ShutDown();
 }
 
+
+
 void *GroupBy::groupbyStaticHelper(void *groupBy)
-{
+{	
+	GroupBy *GB = (GroupBy *)groupBy;
+	GB->groupbyHelper();
+
 }
 
 void GroupBy::Run(Pipe &inPipe, Pipe &outPipe, OrderMaker &groupAtts, Function &computeMe)

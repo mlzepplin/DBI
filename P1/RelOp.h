@@ -154,6 +154,8 @@ class GroupBy : public RelationalOp
 	void *groupbyHelper();
 	void WaitUntilDone();
 	void Use_n_Pages(int n);
+	template <class sumType>
+	static Record groupBySum(Record *a, Record *b, Function *computeMe);
 };
 
 class WriteOut : public RelationalOp
@@ -186,6 +188,19 @@ void Sum::calculateSum(Pipe *inPipe, Pipe *outPipe, Function *computeMe)
 	//create an instance of a Record that contains the calculated sum of the given function
 	Record sumRecord(sum);
 	outPipe->Insert(&sumRecord);
+}
+
+template <class sumType>
+Record GroupBy::groupBySum(Record *a, Record *b, Function *computeMe)
+{
+	sumType sum = 0;
+	Record buffer;
+
+		sum += computeMe->Apply<sumType>(a);
+		sum += computeMe->Apply<sumType>(b);
+	//create an instance of a Record that contains the calculated sum of the given function
+	Record sumRecord(sum);
+	return sumRecord;
 }
 
 #endif
