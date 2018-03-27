@@ -214,15 +214,15 @@ void q4()
 	get_cnf(str_sum, &join_sch, func);
 	func.Print();
 	T.Use_n_Pages(1);
-
+	
 	SF_ps.Run(dbf_ps, _ps, cnf_ps, lit_ps); // 161 recs qualified
 	J.Run(_s, _ps, _s_ps, cnf_p_ps, lit_p_ps);
 	T.Run(_s_ps, _out, func);
-
+	
 	SF_ps.WaitUntilDone();
 	J.WaitUntilDone();
 	T.WaitUntilDone();
-
+	
 	Schema sum_sch("sum_sch", 1, &DA);
 	int cnt = clear_pipe(_out, &sum_sch, true);
 	cout << " query4 returned " << cnt << " recs \n";

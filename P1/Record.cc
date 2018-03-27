@@ -541,6 +541,7 @@ void Record::Write(FILE *outFile, Schema *mySchema)
 }
 
 int Record::getNumAtts() {
-	int *l = (int*)bits[1] - sizeof(int);
-	int numAtts = (*l)/sizeof(int);
+	//int *l = (int*)bits[1] - sizeof(int);
+	int numAtts = ((int*)bits)[1]/sizeof(int)-1;
+	return numAtts;
 }

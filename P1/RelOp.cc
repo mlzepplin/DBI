@@ -315,56 +315,58 @@ void Join::sortMergeJoin(Pipe *leftPipe, OrderMaker *leftOrder, Pipe *rightPipe,
 	//output pipes for the two input pipes
 	Pipe leftSortedPipe(PIPE_SIZE);
 	Pipe rightSortedPipe(PIPE_SIZE);
-
+	
 	//BigQ's to store input from the two inout pipes
 	BigQ leftBigQ(*leftPipe, leftSortedPipe, *leftOrder, runLength);
 	BigQ rightBigQ(*rightPipe, rightSortedPipe, *rightOrder, runLength);
 
-	Record *leftRecord, *rightRecord, mergedRecord;
-
-	int l = leftPipe->Remove(leftRecord);
-	int r = rightPipe->Remove(rightRecord);
+	Record leftRecord, rightRecord, mergedRecord;
+	
+	int l = leftSortedPipe.Remove(&leftRecord);
+	int r = rightSortedPipe.Remove(&rightRecord);
 
 
 	while(l && r){
 		
-		int c = compEngine.Compare(leftRecord,leftOrder,rightRecord,rightOrder);
+		int c = compEngine.Compare(&leftRecord,leftOrder,&rightRecord,rightOrder);
 		if(c==0){
 			//create a merge record
-			int leftNumAtts = leftRecord->getNumAtts();
-			int rightNumAtts = rightRecord->getNumAtts();
+			int leftNumAtts = leftRecord.getNumAtts();
+			int rightNumAtts = rightRecord.getNumAtts();
 			int mergedNumAtts = leftNumAtts + rightNumAtts;
 			int *attsToKeep = new int[leftNumAtts + rightNumAtts];
 
-			for (int i=0; i<leftNumAtts; i++){
+			for (int i=0; i<leftNumAtts; ++i){
 				attsToKeep[i] = i;
 			}
 
-			for (int i=0; i<rightNumAtts; i++) {
-				attsToKeep[i] = i+leftNumAtts;
+			for (int i=0; i<rightNumAtts; ++i) {
+				attsToKeep[i+ leftNumAtts] = i;
 			}
-			mergedRecord.MergeRecords(leftRecord, rightRecord, leftNumAtts, rightNumAtts, attsToKeep, mergedNumAtts, leftNumAtts);
+		
+			mergedRecord.MergeRecords(&leftRecord, &rightRecord, leftNumAtts, rightNumAtts, attsToKeep, mergedNumAtts, leftNumAtts);
+			
 			outPipe->Insert(&mergedRecord);
 
-			l = leftPipe->Remove(leftRecord);
-			r = rightPipe->Remove(rightRecord);
+			l = leftSortedPipe.Remove(&leftRecord);
+			r = rightSortedPipe.Remove(&rightRecord);
 		}
 		else if(c==-1){
 			//left rec is less
-			l = leftPipe->Remove(leftRecord);
+			l = leftSortedPipe.Remove(&leftRecord);
 		}
 		else{
 			//right rec is less
-			r = rightPipe->Remove(rightRecord);
+			r = rightSortedPipe.Remove(&rightRecord);
 		}
 
 	}
 
+	leftBigQ.WaitUntilDone();
+	rightBigQ.WaitUntilDone();
 
+	outPipe->ShutDown();
 
-	
-
-	//TODO Implement merge join
 }
 
 void *Join::joinHelper()
@@ -376,7 +378,8 @@ void *Join::joinHelper()
 	//GetSortOrders returns a 0 if and only if it is impossible to determine
 	//an acceptable ordering for the given comparison
 	if (selOp->GetSortOrders(leftOrder, rightOrder))
-	{
+	{	
+		
 		sortMergeJoin(leftInPipe, &leftOrder, rightInPipe, &rightOrder, outPipe, selOp, literal, numPages);
 	}
 	else
