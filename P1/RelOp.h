@@ -79,7 +79,23 @@ class Project : public RelationalOp
 	static void *projectStaticHelper(void *project);
 	void *projectHelper();
 };
+class JoinMemBuffer
+{
+  private:
+	int maxSize;
+	vector<Record *> buffer;
 
+  public:
+	JoinMemBuffer(int runLength)
+	{
+		maxSize = PAGE_SIZE * runLength / sizeof(Record *);
+	}
+	~JoinMemBuffer() {}
+	bool addRecord(Record &rec);
+	Record *getRecord(int index);
+	int size();
+	void clear();
+};
 class Join : public RelationalOp
 {
   private:
@@ -90,13 +106,14 @@ class Join : public RelationalOp
 	Pipe *outPipe;
 	CNF *selOp;
 	Record *literal;
-	vector<Record*> joinBuffer;
+	JoinMemBuffer *joinMemBuffer;
 
   public:
 	void Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);
 	static void *joinStaticHelper(void *join);
 	void *joinHelper();
-	void sortMergeJoin(OrderMaker* leftOrder,OrderMaker* rightOrder);
+	void sortMergeJoin(OrderMaker *leftOrder, OrderMaker *rightOrder);
+	void blockNestedLoopJoin(OrderMaker *leftOrder, OrderMaker *rightOrder);
 	void WaitUntilDone();
 	void Use_n_Pages(int n);
 };
@@ -197,8 +214,8 @@ Record GroupBy::groupBySum(Record *a, Record *b, Function *computeMe)
 	sumType sum = 0;
 	Record buffer;
 
-		sum += computeMe->Apply<sumType>(a);
-		sum += computeMe->Apply<sumType>(b);
+	sum += computeMe->Apply<sumType>(a);
+	sum += computeMe->Apply<sumType>(b);
 	//create an instance of a Record that contains the calculated sum of the given function
 	Record sumRecord(sum);
 	return sumRecord;
