@@ -309,27 +309,30 @@ void WriteOut::Use_n_Pages(int runlen)
 	numPages = runlen;
 }
 
-void Join::sortMergeJoin(Pipe *leftPipe, OrderMaker *leftOrder, Pipe *rightPipe, OrderMaker *rightOrder, Pipe *outPipe, CNF *cnf, Record *literal, size_t runLength)
+void Join::sortMergeJoin(Pipe *leftPipe, OrderMaker *leftOrder, Pipe *rightPipe, OrderMaker *rightOrder, Pipe *outPipe, CNF *cnf, 
+Record *literal, size_t runLength)
 {
 	ComparisonEngine compEngine;
 	//output pipes for the two input pipes
 	Pipe leftSortedPipe(PIPE_SIZE);
 	Pipe rightSortedPipe(PIPE_SIZE);
 	
-	//BigQ's to store input from the two inout pipes
+	//BigQ's to sort input from the two inout pipes
 	BigQ leftBigQ(*leftPipe, leftSortedPipe, *leftOrder, runLength);
 	BigQ rightBigQ(*rightPipe, rightSortedPipe, *rightOrder, runLength);
 
-	Record leftRecord, rightRecord, mergedRecord;
+	Record leftRecord, rightRecord, mergedRecord,leftPreviousRecord,rightNextRecord;
 	
 	int l = leftSortedPipe.Remove(&leftRecord);
 	int r = rightSortedPipe.Remove(&rightRecord);
 
-
+	
+	int count =0;
 	while(l && r){
 		
 		int c = compEngine.Compare(&leftRecord,leftOrder,&rightRecord,rightOrder);
-		if(c==0){
+		
+		if(c==0){//found left and right records where left.att==right.att
 			//create a merge record
 			int leftNumAtts = leftRecord.getNumAtts();
 			int rightNumAtts = rightRecord.getNumAtts();
@@ -343,15 +346,46 @@ void Join::sortMergeJoin(Pipe *leftPipe, OrderMaker *leftOrder, Pipe *rightPipe,
 			for (int i=0; i<rightNumAtts; ++i) {
 				attsToKeep[i+ leftNumAtts] = i;
 			}
-		
-			mergedRecord.MergeRecords(&leftRecord, &rightRecord, leftNumAtts, rightNumAtts, attsToKeep, mergedNumAtts, leftNumAtts);
+			//keep adding records with same value from left(random,could have used right as well) pipe to the buffer
 			
-			outPipe->Insert(&mergedRecord);
+			//clear out buffer
+			joinBuffer.clear();
 
-			l = leftSortedPipe.Remove(&leftRecord);
-			r = rightSortedPipe.Remove(&rightRecord);
+			//taking care of the first record
+			leftPreviousRecord.Consume(&leftRecord);
+			joinBuffer.push_back(&leftPreviousRecord);
+
+			//taking care of subsequent records
+			while((l = leftSortedPipe.Remove(&leftRecord)) && compEngine.Compare(&leftPreviousRecord,&leftRecord,leftOrder)==0){
+				//while there is a next left record and it is the same(in terms of concerned attribute)
+				// as the previous one, keep adding it to the buffer vector
+				joinBuffer.push_back(&leftRecord);
+				leftPreviousRecord.Consume(&leftRecord);
+			}
+			// buffer completely populated, now check the right against all left one's in buffer
+			// Record *rightNextRecord;
+			do{
+				
+				for(int i=0;i<joinBuffer.size();i++){
+
+				if(compEngine.Compare(joinBuffer[i],&rightRecord,literal,cnf)){
+					
+					mergedRecord.MergeRecords(joinBuffer[i], &rightRecord, leftNumAtts, rightNumAtts, attsToKeep, mergedNumAtts, leftNumAtts);
+					outPipe->Insert(&mergedRecord);
+				}
+				
+				}
+				//now do this for all the possible right records that have the same value for concerned attribute
+				//rightNextRecord = new Record();
+				r = rightSortedPipe.Remove(&rightNextRecord);
+			}while( r && compEngine.Compare(&leftPreviousRecord,leftOrder,&rightNextRecord,rightOrder)==0);
+			
+			// l = leftSortedPipe.Remove(&leftRecord);
+			// r = rightSortedPipe.Remove(&rightRecord);
+			
+			//compEngine.Compare(&rightRecord,&rightNextRecord,rightOrder)==0
 		}
-		else if(c==-1){
+		else if(c<0){
 			//left rec is less
 			l = leftSortedPipe.Remove(&leftRecord);
 		}
@@ -365,7 +399,7 @@ void Join::sortMergeJoin(Pipe *leftPipe, OrderMaker *leftOrder, Pipe *rightPipe,
 	leftBigQ.WaitUntilDone();
 	rightBigQ.WaitUntilDone();
 
-	outPipe->ShutDown();
+	
 
 }
 
@@ -386,6 +420,8 @@ void *Join::joinHelper()
 	{
 		//nested loop join
 	}
+
+	outPipe->ShutDown();
 }
 
 void *Join::joinStaticHelper(void *join)

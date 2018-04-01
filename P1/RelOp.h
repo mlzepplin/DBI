@@ -6,6 +6,7 @@
 #include "Record.h"
 #include "Function.h"
 #include "BigQ.h"
+#include "vector"
 
 class RelationalOp
 {
@@ -89,12 +90,13 @@ class Join : public RelationalOp
 	Pipe *outPipe;
 	CNF *selOp;
 	Record *literal;
+	vector<Record*> joinBuffer;
 
   public:
 	void Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);
 	static void *joinStaticHelper(void *join);
 	void *joinHelper();
-	static void sortMergeJoin(Pipe *leftPipe, OrderMaker *leftOrder, Pipe *rightPipe, OrderMaker *rightOrder, Pipe *outPipe,
+	void sortMergeJoin(Pipe *leftPipe, OrderMaker *leftOrder, Pipe *rightPipe, OrderMaker *rightOrder, Pipe *outPipe,
 							  CNF *cnf, Record *literal, size_t numPages);
 	void WaitUntilDone();
 	void Use_n_Pages(int n);
