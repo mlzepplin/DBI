@@ -106,6 +106,7 @@ class Join : public RelationalOp
 	Pipe *outPipe;
 	CNF *selOp;
 	Record *literal;
+
 	JoinMemBuffer *joinMemBuffer;
 
   public:

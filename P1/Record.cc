@@ -540,8 +540,29 @@ void Record::Write(FILE *outFile, Schema *mySchema)
 	fprintf(outFile, "\n");
 }
 
-int Record::getNumAtts() {
+int Record::getNumAtts()
+{
 	//int *l = (int*)bits[1] - sizeof(int);
-	int numAtts = ((int*)bits)[1]/sizeof(int)-1;
+	int numAtts = ((int *)bits)[1] / sizeof(int) - 1;
 	return numAtts;
+}
+
+void Record::atomicMerge(Record *leftRecord, Record *rightRecord)
+{
+	int leftNumAtts = leftRecord->getNumAtts();
+	int rightNumAtts = rightRecord->getNumAtts();
+	int mergedNumAtts = leftNumAtts + rightNumAtts;
+	int *attsToKeep = new int[leftNumAtts + rightNumAtts];
+	for (int i = 0; i < leftNumAtts; ++i)
+	{
+		attsToKeep[i] = i;
+	}
+
+	for (int i = 0; i < rightNumAtts; ++i)
+	{
+		attsToKeep[i + leftNumAtts] = i;
+	}
+	MergeRecords(leftRecord, rightRecord, leftNumAtts, rightNumAtts, attsToKeep, mergedNumAtts, leftNumAtts);
+
+	delete[] attsToKeep;
 }

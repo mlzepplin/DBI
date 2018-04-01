@@ -76,7 +76,11 @@ class Record
 	//Write record to a file
 	void Write(FILE *file, Schema *mySchema);
 
+	// Get number of attributes
 	int getNumAtts();
+
+	// atomic merge records into me
+	void atomicMerge(Record *left, Record *right);
 };
 
 template <class T> // T should be int or double

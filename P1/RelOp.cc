@@ -333,21 +333,8 @@ void Join::sortMergeJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 		if (c == 0)
 		{ //found left and right records where left.att==right.att
 
-			//create a merge record's attributes
-			int leftNumAtts = leftRecord.getNumAtts();
-			int rightNumAtts = rightRecord.getNumAtts();
-			int mergedNumAtts = leftNumAtts + rightNumAtts;
-			int *attsToKeep = new int[leftNumAtts + rightNumAtts];
-
-			for (int i = 0; i < leftNumAtts; ++i)
-			{
-				attsToKeep[i] = i;
-			}
-
-			for (int i = 0; i < rightNumAtts; ++i)
-			{
-				attsToKeep[i + leftNumAtts] = i;
-			}
+			//populate all numAtts and attsToKeep for possible merge
+			//initAtts(leftRecord, rightRecord);
 			//keep adding records with same value from left(random,could have used right as well) pipe to the buffer
 
 			//clear out buffer
@@ -374,8 +361,7 @@ void Join::sortMergeJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 
 					if (compEngine.Compare(joinMemBuffer->getRecord(i), &rightRecord, literal, selOp))
 					{
-
-						mergedRecord.MergeRecords(joinMemBuffer->getRecord(i), &rightRecord, leftNumAtts, rightNumAtts, attsToKeep, mergedNumAtts, leftNumAtts);
+						mergedRecord.atomicMerge(joinMemBuffer->getRecord(i), &rightRecord);
 						outPipe->Insert(&mergedRecord);
 					}
 				}
@@ -400,18 +386,41 @@ void Join::sortMergeJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 }
 void Join::blockNestedLoopJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 {
-
+	ComparisonEngine compEngine;
+	Record mergedRecord, temp, bufferRecord, rightRecord;
 	// Writeout right table (ideally,should choose the smaller), to disk
 	HeapFile rightFile;
 	rightFile.Create("blockNestedLoopJoinTempFile.bin", NULL);
-	Record temp;
+
 	while (rightInPipe->Remove(&temp))
 	{
 		rightFile.Add(temp);
 	}
 
-	//write left pipe to buffer as much as possible
+	while (leftInPipe->Remove(&temp))
+	{
+		//write left pipe to buffer as much as possible
+		while (joinMemBuffer->addRecord(temp))
+			;
+		//join/cross the buffer load with all records from rightFile
+		while (rightFile.GetNext(rightRecord))
+		{
+			for (int i = 0; i < joinMemBuffer->size(); i++)
+			{
+
+				if (compEngine.Compare(joinMemBuffer->getRecord(i), &rightRecord, literal, selOp))
+				{
+					mergedRecord.atomicMerge(joinMemBuffer->getRecord(i), &rightRecord);
+					outPipe->Insert(&mergedRecord);
+				}
+			}
+		}
+		rightFile.MoveFirst();
+		joinMemBuffer->clear();
+	}
+	rightFile.Close();
 }
+
 void *Join::joinHelper()
 {
 	OrderMaker leftOrder;
@@ -427,7 +436,7 @@ void *Join::joinHelper()
 	}
 	else
 	{
-		//nested loop join
+		blockNestedLoopJoin(&leftOrder, &rightOrder);
 	}
 
 	outPipe->ShutDown();
