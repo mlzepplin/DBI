@@ -91,25 +91,10 @@ class JoinMemBuffer
 		maxSize = PAGE_SIZE * runLength / sizeof(Record *);
 	}
 	~JoinMemBuffer() {}
-	bool addRecord(Record &rec)
-	{
-		if (buffer.size() + 1 > maxSize)
-			return false;
-		buffer.push_back(&rec);
-		return true;
-	}
-	Record *getRecord(int index)
-	{
-		return buffer[index];
-	}
-	int size()
-	{
-		return buffer.size();
-	}
-	void clear()
-	{
-		buffer.clear();
-	}
+	bool addRecord(Record &rec);
+	Record *getRecord(int index);
+	int size();
+	void clear();
 };
 class Join : public RelationalOp
 {
@@ -121,7 +106,7 @@ class Join : public RelationalOp
 	Pipe *outPipe;
 	CNF *selOp;
 	Record *literal;
-	JoinMemBuffer joinMemBuffer;
+	JoinMemBuffer *joinMemBuffer;
 
   public:
 	void Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);

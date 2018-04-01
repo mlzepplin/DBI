@@ -351,31 +351,31 @@ void Join::sortMergeJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 			//keep adding records with same value from left(random,could have used right as well) pipe to the buffer
 
 			//clear out buffer
-			joinMemBuffer.clear();
+			joinMemBuffer->clear();
 
 			//taking care of the first record
 			leftPreviousRecord.Consume(&leftRecord);
-			joinMemBuffer.addRecord(leftPreviousRecord);
+			joinMemBuffer->addRecord(leftPreviousRecord);
 
 			//taking care of subsequent records
 			while ((l = leftSortedPipe.Remove(&leftRecord)) && compEngine.Compare(&leftPreviousRecord, &leftRecord, leftOrder) == 0)
 			{
 				//while there is a next left record and it is the same(in terms of concerned attribute)
 				// as the previous one, keep adding it to the buffer vector
-				joinMemBuffer.addRecord(leftRecord);
+				joinMemBuffer->addRecord(leftRecord);
 				leftPreviousRecord.Consume(&leftRecord);
 			}
 			// buffer completely populated, now check the right against all left one's in buffer
 			do
 			{
 
-				for (int i = 0; i < joinMemBuffer.size(); i++)
+				for (int i = 0; i < joinMemBuffer->size(); i++)
 				{
 
-					if (compEngine.Compare(joinMemBuffer.getRecord(i), &rightRecord, literal, selOp))
+					if (compEngine.Compare(joinMemBuffer->getRecord(i), &rightRecord, literal, selOp))
 					{
 
-						mergedRecord.MergeRecords(joinMemBuffer.getRecord(i), &rightRecord, leftNumAtts, rightNumAtts, attsToKeep, mergedNumAtts, leftNumAtts);
+						mergedRecord.MergeRecords(joinMemBuffer->getRecord(i), &rightRecord, leftNumAtts, rightNumAtts, attsToKeep, mergedNumAtts, leftNumAtts);
 						outPipe->Insert(&mergedRecord);
 					}
 				}
@@ -446,6 +446,7 @@ void Join::Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &
 	this->outPipe = &outPipe;
 	this->selOp = &selOp;
 	this->literal = &literal;
+	this->joinMemBuffer = new JoinMemBuffer(numPages);
 
 	int w = pthread_create(&thread, NULL, joinStaticHelper, (void *)this);
 	if (w)
@@ -531,4 +532,24 @@ void GroupBy::WaitUntilDone()
 void GroupBy::Use_n_Pages(int runlen)
 {
 	numPages = runlen;
+}
+
+bool JoinMemBuffer::addRecord(Record &rec)
+{
+	if (buffer.size() + 1 > maxSize)
+		return false;
+	buffer.push_back(&rec);
+	return true;
+}
+Record *JoinMemBuffer::getRecord(int index)
+{
+	return buffer[index];
+}
+int JoinMemBuffer::size()
+{
+	return buffer.size();
+}
+void JoinMemBuffer::clear()
+{
+	buffer.clear();
 }
