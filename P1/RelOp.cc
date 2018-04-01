@@ -169,7 +169,7 @@ void *DuplicateRemoval::duplicateRemovalHelper()
 	//inPipe->ShutDown();
 	//call BigQ to put the sorted output into the outPipe/sortedPipe
 	BigQ bigQ(*inPipe, sortedPipe, sortOrder, numPages);
-	
+
 	Record buffer, next;
 	ComparisonEngine compEngine;
 
@@ -309,90 +309,109 @@ void WriteOut::Use_n_Pages(int runlen)
 	numPages = runlen;
 }
 
-void Join::sortMergeJoin(OrderMaker* leftOrder,OrderMaker* rightOrder)
+void Join::sortMergeJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 {
 	ComparisonEngine compEngine;
 	//output pipes for the two input pipes
 	Pipe leftSortedPipe(PIPE_SIZE);
 	Pipe rightSortedPipe(PIPE_SIZE);
-	
+
 	//BigQ's to sort input from the two inout pipes
 	BigQ leftBigQ(*leftInPipe, leftSortedPipe, *leftOrder, numPages);
 	BigQ rightBigQ(*rightInPipe, rightSortedPipe, *rightOrder, numPages);
 
-	Record leftRecord, rightRecord, mergedRecord,leftPreviousRecord,rightNextRecord;
-	
+	Record leftRecord, rightRecord, mergedRecord, leftPreviousRecord, rightNextRecord;
+
 	int l = leftSortedPipe.Remove(&leftRecord);
 	int r = rightSortedPipe.Remove(&rightRecord);
 
-	
-	while(l && r){
-		
-		int c = compEngine.Compare(&leftRecord,leftOrder,&rightRecord,rightOrder);
-		
-		if(c==0){//found left and right records where left.att==right.att
-			
+	while (l && r)
+	{
+
+		int c = compEngine.Compare(&leftRecord, leftOrder, &rightRecord, rightOrder);
+
+		if (c == 0)
+		{ //found left and right records where left.att==right.att
+
 			//create a merge record's attributes
 			int leftNumAtts = leftRecord.getNumAtts();
 			int rightNumAtts = rightRecord.getNumAtts();
 			int mergedNumAtts = leftNumAtts + rightNumAtts;
 			int *attsToKeep = new int[leftNumAtts + rightNumAtts];
 
-			for (int i=0; i<leftNumAtts; ++i){
+			for (int i = 0; i < leftNumAtts; ++i)
+			{
 				attsToKeep[i] = i;
 			}
 
-			for (int i=0; i<rightNumAtts; ++i) {
-				attsToKeep[i+ leftNumAtts] = i;
+			for (int i = 0; i < rightNumAtts; ++i)
+			{
+				attsToKeep[i + leftNumAtts] = i;
 			}
 			//keep adding records with same value from left(random,could have used right as well) pipe to the buffer
-			
+
 			//clear out buffer
-			joinBuffer.clear();
+			joinMemBuffer.clear();
 
 			//taking care of the first record
 			leftPreviousRecord.Consume(&leftRecord);
-			joinBuffer.push_back(&leftPreviousRecord);
+			joinMemBuffer.addRecord(leftPreviousRecord);
 
 			//taking care of subsequent records
-			while((l = leftSortedPipe.Remove(&leftRecord)) && compEngine.Compare(&leftPreviousRecord,&leftRecord,leftOrder)==0){
+			while ((l = leftSortedPipe.Remove(&leftRecord)) && compEngine.Compare(&leftPreviousRecord, &leftRecord, leftOrder) == 0)
+			{
 				//while there is a next left record and it is the same(in terms of concerned attribute)
 				// as the previous one, keep adding it to the buffer vector
-				joinBuffer.push_back(&leftRecord);
+				joinMemBuffer.addRecord(leftRecord);
 				leftPreviousRecord.Consume(&leftRecord);
 			}
 			// buffer completely populated, now check the right against all left one's in buffer
-			do{
-				
-				for(int i=0;i<joinBuffer.size();i++){
+			do
+			{
 
-					if(compEngine.Compare(joinBuffer[i],&rightRecord,literal,selOp)){
-						
-						mergedRecord.MergeRecords(joinBuffer[i], &rightRecord, leftNumAtts, rightNumAtts, attsToKeep, mergedNumAtts, leftNumAtts);
+				for (int i = 0; i < joinMemBuffer.size(); i++)
+				{
+
+					if (compEngine.Compare(joinMemBuffer.getRecord(i), &rightRecord, literal, selOp))
+					{
+
+						mergedRecord.MergeRecords(joinMemBuffer.getRecord(i), &rightRecord, leftNumAtts, rightNumAtts, attsToKeep, mergedNumAtts, leftNumAtts);
 						outPipe->Insert(&mergedRecord);
 					}
-				
 				}
 				//now do this for all the possible right records that have the same value for concerned attribute
 				r = rightSortedPipe.Remove(&rightNextRecord);
-			}while( r && compEngine.Compare(&rightRecord,&rightNextRecord,rightOrder)==0);
-			
+			} while (r && compEngine.Compare(&rightRecord, &rightNextRecord, rightOrder) == 0);
 		}
-		else if(c<0){
+		else if (c < 0)
+		{
 			//left rec is less
 			l = leftSortedPipe.Remove(&leftRecord);
 		}
-		else{
+		else
+		{
 			//right rec is less
 			r = rightSortedPipe.Remove(&rightRecord);
 		}
-
 	}
 
 	leftBigQ.WaitUntilDone();
 	rightBigQ.WaitUntilDone();
 }
+void Join::blockNestedLoopJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
+{
 
+	// Writeout right table (ideally,should choose the smaller), to disk
+	HeapFile rightFile;
+	rightFile.Create("blockNestedLoopJoinTempFile.bin", NULL);
+	Record temp;
+	while (rightInPipe->Remove(&temp))
+	{
+		rightFile.Add(temp);
+	}
+
+	//write left pipe to buffer as much as possible
+}
 void *Join::joinHelper()
 {
 	OrderMaker leftOrder;
@@ -402,9 +421,9 @@ void *Join::joinHelper()
 	//GetSortOrders returns a 0 if and only if it is impossible to determine
 	//an acceptable ordering for the given comparison
 	if (selOp->GetSortOrders(leftOrder, rightOrder))
-	{	
-		
-		sortMergeJoin(&leftOrder,&rightOrder);
+	{
+
+		sortMergeJoin(&leftOrder, &rightOrder);
 	}
 	else
 	{
@@ -448,15 +467,14 @@ void Join::Use_n_Pages(int runlen)
 
 void *GroupBy::groupbyHelper()
 {
-	
+
 	Pipe sortedPipe(PIPE_SIZE);
 
 	//call BigQ to put the sorted output into the outPipe/sortedPipe
 	BigQ bigQ(*inPipe, sortedPipe, *groupAtts, numPages);
 
 	HeapFile tempFile;
-	tempFile.Open("llllaaaa.bin");
-	
+	tempFile.Open("groupByHelper.bin");
 
 	Record buffer, next;
 	ComparisonEngine compEngine;
@@ -472,28 +490,22 @@ void *GroupBy::groupbyHelper()
 				buffer.Consume(&next);
 			}
 
-	// 		if (computeMe->returnsInt == 1){
-	// 	groupBySum<int>(inPipe, outPipe, computeMe);
-	// }
-	// else{
-	// 	groupBySum<double>(inPipe, outPipe, computeMe);
-	// }
-
-	
-
+			// 		if (computeMe->returnsInt == 1){
+			// 	groupBySum<int>(inPipe, outPipe, computeMe);
+			// }
+			// else{
+			// 	groupBySum<double>(inPipe, outPipe, computeMe);
+			// }
 		}
 		outPipe->Insert(&buffer);
 	}
 	outPipe->ShutDown();
 }
 
-
-
 void *GroupBy::groupbyStaticHelper(void *groupBy)
-{	
+{
 	GroupBy *GB = (GroupBy *)groupBy;
 	GB->groupbyHelper();
-
 }
 
 void GroupBy::Run(Pipe &inPipe, Pipe &outPipe, OrderMaker &groupAtts, Function &computeMe)
