@@ -96,8 +96,7 @@ class Join : public RelationalOp
 	void Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);
 	static void *joinStaticHelper(void *join);
 	void *joinHelper();
-	void sortMergeJoin(Pipe *leftPipe, OrderMaker *leftOrder, Pipe *rightPipe, OrderMaker *rightOrder, Pipe *outPipe,
-							  CNF *cnf, Record *literal, size_t numPages);
+	void sortMergeJoin(OrderMaker* leftOrder,OrderMaker* rightOrder);
 	void WaitUntilDone();
 	void Use_n_Pages(int n);
 };
