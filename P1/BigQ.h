@@ -56,8 +56,10 @@ class BigQ
 	Comp comparator;
 	int runLength;
 	OrderMaker sortOrder;
+	pthread_t worker;
 
 	BigQ(Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen);
+	void WaitUntilDone();
 	bool compare(Record *i, Record *j);
 	~BigQ();
 

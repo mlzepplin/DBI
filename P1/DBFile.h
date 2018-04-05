@@ -19,6 +19,7 @@ class DBFile
 {
 private:
 	unordered_map<fType, string> auxMap;
+	DB *db;
 
 public:
 	DBFile();
@@ -40,7 +41,5 @@ public:
 	std::string getTableName(const char* fpath);
 	void allocateMemToDB(fType f_type);
 
-private:
-	DB *db;
 };
 #endif
