@@ -17,4 +17,5 @@ yyfunc.tab.h
 *.meta
 *.bigq
 *.out
+*settings.json
 

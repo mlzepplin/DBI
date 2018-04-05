@@ -3,6 +3,7 @@
 #include "ParseTree.h"
 #include <unordered_map>
 #include <string>
+#include "Schema.h"
 struct RelationInfo
 {
 	int numTuples;
@@ -13,6 +14,7 @@ class Statistics
 {
   private:
 	std::unordered_map<std::string, RelationInfo> relationMap;
+	Schema *schema;
 
   public:
 	Statistics();
