@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <string.h>
 
 #include "Defs.h"
 #include "ParseTree.h"
@@ -81,6 +82,11 @@ class Record
 
 	// atomic merge records into me
 	void atomicMerge(Record *left, Record *right);
+
+	template <class groupByType>
+	void AddSumAsFirstAtribute(const groupByType &value);
+
+	int getLength() { return ((int *)bits)[0]; }
 };
 
 template <class T> // T should be int or double
@@ -98,6 +104,33 @@ Record::Record(const T &value)
 
 	//store the value after the offset
 	*(T *)(bits + ((int *)bits)[1]) = value;
+}
+
+template <class groupByType>
+void Record::AddSumAsFirstAtribute(const groupByType &value)
+{
+	size_t attSize = sizeof(int) + sizeof(groupByType);
+	size_t recordSize = ((int *)bits)[0] + attSize;
+
+	int numOfAtts = getNumAtts();
+
+	Record groupByRecord;
+	if (bits)
+		delete[] bits;
+	bits = new char[recordSize];
+	((int *)bits)[0] = recordSize;
+	((int *)bits)[1] = sizeof(int) * (numOfAtts + 2);
+
+	size_t offset = ((int *)bits)[1];
+	*(groupByType *)(bits + offset) = value;
+
+	for (int i = 0; i < numOfAtts; i++)
+	{
+		((int *)bits)[i + 2] = ((int *)bits)[i + 1] + attSize;
+	}
+
+	memcpy((void *)(groupByRecord.bits + ((int *)bits)[1] + attSize), (void *)(bits + ((int *)bits)[1]), ((int *)bits)[0] - ((int *)bits)[1]);
+	Consume(&groupByRecord);
 }
 
 #endif

@@ -478,37 +478,15 @@ void Join::Use_n_Pages(int runlen)
 void *GroupBy::groupbyHelper()
 {
 
-	Pipe sortedPipe(PIPE_SIZE);
-
-	//call BigQ to put the sorted output into the outPipe/sortedPipe
-	BigQ bigQ(*inPipe, sortedPipe, *groupAtts, numPages);
-
-	HeapFile tempFile;
-	tempFile.Open("groupByHelper.bin");
-
-	Record buffer, next;
-	ComparisonEngine compEngine;
-
-	if (tempFile.GetNext(buffer))
+	if (computeMe->returnsInt == 1)
 	{
-
-		while (tempFile.GetNext(next))
-		{
-			if (compEngine.Compare(&buffer, &next, groupAtts) != 0)
-			{
-				outPipe->Insert(&buffer);
-				buffer.Consume(&next);
-			}
-
-			// 		if (computeMe->returnsInt == 1){
-			// 	groupBySum<int>(inPipe, outPipe, computeMe);
-			// }
-			// else{
-			// 	groupBySum<double>(inPipe, outPipe, computeMe);
-			// }
-		}
-		outPipe->Insert(&buffer);
+		performGroupBy<int>(inPipe, outPipe, groupAtts, computeMe, numPages);
 	}
+	else
+	{
+		performGroupBy<double>(inPipe, outPipe, groupAtts, computeMe, numPages);
+	}
+
 	outPipe->ShutDown();
 }
 

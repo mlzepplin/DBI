@@ -173,8 +173,9 @@ class GroupBy : public RelationalOp
 	void *groupbyHelper();
 	void WaitUntilDone();
 	void Use_n_Pages(int n);
-	template <class sumType>
-	static Record groupBySum(Record *a, Record *b, Function *computeMe);
+
+	template <class groupByType>
+	static void performGroupBy(Pipe *inPipe, Pipe *outPipe, OrderMaker *groupAtts, Function *computeMe, size_t numPages);
 };
 
 class WriteOut : public RelationalOp
@@ -209,17 +210,39 @@ void Sum::calculateSum(Pipe *inPipe, Pipe *outPipe, Function *computeMe)
 	outPipe->Insert(&sumRecord);
 }
 
-template <class sumType>
-Record GroupBy::groupBySum(Record *a, Record *b, Function *computeMe)
+template <class groupByType>
+void GroupBy::performGroupBy(Pipe *inPipe, Pipe *outPipe, OrderMaker *groupAtts, Function *computeMe, size_t numPages)
 {
-	sumType sum = 0;
-	Record buffer;
+	Pipe sortedPipe(PIPE_SIZE);
 
-	sum += computeMe->Apply<sumType>(a);
-	sum += computeMe->Apply<sumType>(b);
-	//create an instance of a Record that contains the calculated sum of the given function
-	Record sumRecord(sum);
-	return sumRecord;
+	//call BigQ to put the sorted output into an intermeddiate sortedPipe
+	BigQ bigQ(*inPipe, sortedPipe, *groupAtts, numPages);
+
+	Record buffer, next;
+	ComparisonEngine compEngine;
+
+	if (sortedPipe.Remove(&buffer))
+	{
+		groupByType sum = computeMe->Apply<groupByType>(buffer);
+
+		while (sortedPipe.Remove(&next))
+		{
+			if (compEngine.Compare(&buffer, &next, groupAtts))
+			{
+				buffer.Project(groupAtts->whichAtts, groupAtts->numAtts, buffer.getNumAtts());
+				buffer.AddSumAsFirstAtribute(sum);
+				outPipe->Insert(&buffer);
+				buffer.Consume(&next);
+				sum = computeMe->Apply<groupByType>(buffer);
+			}
+			else
+			{
+				sum += computeMe->Apply<groupByType>(next);
+			}
+		}
+		buffer.Project(groupAtts->whichAtts, groupAtts->numAtts, buffer.getNumAtts());
+		buffer.AddSumAsFirstAtribute(sum);
+		outPipe->Insert(&buffer);
+	}
 }
-
 #endif
