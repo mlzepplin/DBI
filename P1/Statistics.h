@@ -2,6 +2,9 @@
 #define STATISTICS_
 #include "ParseTree.h"
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
+#include <list>
 #include <string>
 #include "Schema.h"
 struct RelationInfo
@@ -14,7 +17,7 @@ class Statistics
 {
   private:
 	std::unordered_map<std::string, RelationInfo> relationMap;
-	Schema *schema;
+	std::list<unordered_set<string>> joinList;
 
   public:
 	Statistics();
