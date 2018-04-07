@@ -32,6 +32,10 @@ class Statistics
 
 	void Apply(struct AndList *parseTree, char *relNames[], int numToJoin);
 	double Estimate(struct AndList *parseTree, char **relNames, int numToJoin);
+
+	bool checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin);
+	bool findAttInRelation(string attName, char *relNames[], int numToJoin);
+	void validateJoin(struct AndList *parseTree, char *relNames[], int numToJoin, bool isApply);
 };
 
 #endif

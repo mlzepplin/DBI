@@ -1,5 +1,4 @@
 #include "Statistics.h"
-#include "unordered_map"
 
 Statistics::Statistics()
 {
@@ -21,6 +20,11 @@ void Statistics::AddRel(char *relName, int numTuples)
         //insert into relation Map
         RelationInfo relationInfo = {numTuples, tempAttributeMap};
         relationMap.insert(std::make_pair(relName, relationInfo));
+
+        //populating join list with singleton
+        unordered_set<string> tempRel;
+        tempRel.insert(relName);
+        joinList.push_front(tempRel);
     }
     else
     { //update numTuples
@@ -83,13 +87,80 @@ string buildSubsetKey(char *relNames[], int num)
     }
     return key;
 }
-void Statistics::Apply(struct AndList *parseTree, char *relNames[], int numToJoin)
-{ //assuming joinSet is populated
+bool Statistics::checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin)
+{
+    struct AndList *currentAnd = parseTree;
+    struct OrList *currentOr;
+    struct ComparisonOp *currentComparisonOp;
+    struct Operand *leftOperand, *rightOperand;
+    string attName;
+    if (parseTree == NULL)
+        return true;
+    while (currentAnd->rightAnd != NULL)
+    {
+        currentOr = currentAnd->left;
+        while (currentOr->rightOr != NULL)
+        {
+            currentComparisonOp = currentOr->left;
+            leftOperand = currentComparisonOp->left;
+            rightOperand = currentComparisonOp->right;
+            if (leftOperand->code != NAME)
+                return false;
+            else
+            {
+                attName = leftOperand->value;
+                if (!findAttInRelation(attName, relNames, numToJoin))
+                    return false;
+                if (rightOperand->code == NAME)
+                {
+                    attName = rightOperand->value;
+                    if (!findAttInRelation(attName, relNames, numToJoin))
+                        return false;
+                }
+            }
+        }
+    }
+    return true;
+}
 
+bool Statistics::findAttInRelation(string attName, char *relNames[], int numToJoin)
+{
+    unordered_map<string, RelationInfo>::iterator relMapIter;
+    unordered_map<string, int>::iterator attMapIter;
+    unordered_map<string, int> attMap;
+
+    for (int i = 0; i < numToJoin; i++)
+    {
+        relMapIter = relationMap.find(relNames[i]);
+        if (relMapIter == relationMap.end())
+            return false;
+        else
+        {
+            attMap = relMapIter->second.attributeMap;
+            attMapIter = attMap.find(attName);
+            if (attMapIter == attMap.end())
+                return false;
+            else
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int numToJoin, bool fromApply)
+{ //assuming joinList is populated
     unordered_set<string>::iterator subsetIterator, relNamesSetIterator;
     list<unordered_set<string>>::iterator joinListItreator;
     unordered_set<string> relNamesSet, subset;
+    struct AndList *currentAnd = parseTree;
+    struct OrList *currentOr = currentAnd->left;
 
+    if (!checkAttributes(parseTree, relNames, numToJoin))
+    {
+        cerr << "either attribute not present in relNames or relNames is not a subset of relationMap" << endl;
+        exit(1);
+    }
     //making a set version of relNames, to reduce internal lookups to O(1)
     for (int i = 0; i < numToJoin; i++)
         relNamesSet.insert(relNames[i]);
@@ -115,25 +186,28 @@ void Statistics::Apply(struct AndList *parseTree, char *relNames[], int numToJoi
                     }
                     //remember to remove found one's from the relNamesSet
                     relNamesSet.erase(*subsetIterator);
-                    joinList.remove(*joinListItreator);
+                    if (fromApply)
+                        joinList.remove(*joinListItreator);
                 }
             }
         }
         if (!relationExistsInJoinList)
         {
-            cerr << "can't predict join, a relation donesn't even exist!" << endl;
+            cerr << "can't predict join, a relation doesn't even exist!" << endl;
             exit(1);
         }
     }
-
+}
+void Statistics::Apply(struct AndList *parseTree, char *relNames[], int numToJoin)
+{
+    unordered_set<string> subset;
+    validateJoin(parseTree, relNames, numToJoin, true);
     //everything went fine, so we'll be able to predict the join output for relNames
-    subset.clear();
     for (int i = 0; i < numToJoin; i++)
         subset.insert(relNames[i]);
 
     //add the bigger set of relNames to the joinList
     joinList.push_front(subset);
-
     //TODO - remove these coments when everything done
     //get the set in which your rel is a member
     //loop through all the other relNames, and check if complete membership of that set is satisfied
@@ -142,4 +216,25 @@ void Statistics::Apply(struct AndList *parseTree, char *relNames[], int numToJoi
 }
 double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numToJoin)
 {
+    double estimatedTuples = 0.0;
+    validateJoin(parseTree, relNames, numToJoin, false);
+    if (parseTree == NULL)
+    {
+        if (numToJoin == 1)
+        {
+            //selection
+            return relationMap.find(relNames[0])->second.numTuples;
+        }
+        else
+        {
+
+            double result = 1.0;
+            //cross product bw all relNames
+            for (int i = 0; i < numToJoin; i++)
+            {
+                result *= relationMap.find(relNames[i])->second.numTuples;
+            }
+            return result;
+        }
+    }
 }
