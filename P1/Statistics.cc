@@ -73,20 +73,7 @@ void Statistics::Read(char *fromWhere)
 void Statistics::Write(char *fromWhere)
 {
 }
-//TODO
-//HELPER METHOD , TO BE REMOVED IF ENDS UP NOT BEING USED
-string buildSubsetKey(char *relNames[], int num)
-{ //if we take this approach then we'll have to generate all the possible keys
-    //and then check for membership
-    string key = "";
-    std::sort(relNames, relNames + num);
-    for (int i = 0; i < num; i++)
-    {
-        key += relNames[i];
-        key += ",";
-    }
-    return key;
-}
+
 bool Statistics::checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin)
 {
     struct AndList *currentAnd = parseTree;
@@ -148,8 +135,28 @@ bool Statistics::findAttInRelation(string attName, char *relNames[], int numToJo
     }
     return false;
 }
+
+int Statistics::getNumTuples(string attName, char *relNames[], int numToJoin, int &numDistincts)
+{ //assumes that attribute does exist in atleast one relation
+    unordered_map<string, RelationInfo>::iterator relMapIter;
+    unordered_map<string, int>::iterator attMapIter;
+    unordered_map<string, int> attMap;
+
+    for (int i = 0; i < numToJoin; i++)
+    {
+        relMapIter = relationMap.find(relNames[i]);
+
+        attMap = relMapIter->second.attributeMap;
+        attMapIter = attMap.find(attName);
+
+        break;
+    }
+    numDistincts = attMapIter->second;
+    return relMapIter->second.numTuples;
+}
+
 void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int numToJoin, bool fromApply)
-{ //assuming joinList is populated
+{ //assumes joinList is populated
     unordered_set<string>::iterator subsetIterator, relNamesSetIterator;
     list<unordered_set<string>>::iterator joinListItreator;
     unordered_set<string> relNamesSet, subset;
@@ -198,25 +205,26 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
         }
     }
 }
+double Statistics::fractionise(int numTuples, int numDistincts)
+{
+    return (numTuples - numDistincts) / (double)numTuples;
+}
 void Statistics::Apply(struct AndList *parseTree, char *relNames[], int numToJoin)
 {
     unordered_set<string> subset;
     validateJoin(parseTree, relNames, numToJoin, true);
+
     //everything went fine, so we'll be able to predict the join output for relNames
     for (int i = 0; i < numToJoin; i++)
         subset.insert(relNames[i]);
 
     //add the bigger set of relNames to the joinList
     joinList.push_front(subset);
-    //TODO - remove these coments when everything done
-    //get the set in which your rel is a member
-    //loop through all the other relNames, and check if complete membership of that set is satisfied
-    //if yes -->remove these rels from relNames & maintain the satisfying set as a temp
-    //loop through all the other relNames
 }
 double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numToJoin)
 {
-    double estimatedTuples = 0.0;
+    double estimatedTuples = 1.0;
+
     validateJoin(parseTree, relNames, numToJoin, false);
     if (parseTree == NULL)
     {
@@ -228,13 +236,65 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
         else
         {
 
-            double result = 1.0;
+            //double result = 1.0;
             //cross product bw all relNames
             for (int i = 0; i < numToJoin; i++)
             {
-                result *= relationMap.find(relNames[i])->second.numTuples;
+                estimatedTuples *= relationMap.find(relNames[i])->second.numTuples;
             }
-            return result;
+            return estimatedTuples;
         }
     }
+    struct AndList *currentAnd = parseTree;
+    struct OrList *currentOr;
+    struct ComparisonOp *currentComparisonOp;
+    struct Operand *leftOperand, *rightOperand;
+    string attName;
+    int maxJoinTuples;
+
+    //compute max possible join tuples
+    for (int i = 0; i < numToJoin; i++)
+    {
+        maxJoinTuples *= relationMap.find(relNames[i])->second.numTuples;
+    }
+
+    //reducing the maxTuples by factoring with all the attribute conditions
+    double minAndFraction = 1.0;
+    while (currentAnd->rightAnd != NULL)
+    {
+        currentOr = currentAnd->left;
+
+        double maxOrFraction = 0.0;
+        while (currentOr->rightOr != NULL)
+        {
+            currentComparisonOp = currentOr->left;
+            leftOperand = currentComparisonOp->left;
+            rightOperand = currentComparisonOp->right;
+            int numRightDistincts = 0, numLeftDistincts = 0;
+            int rightTuples = 0, leftTuples = 0;
+            double currentOrFraction = 0.0;
+            if (currentComparisonOp->code == EQUALS)
+            {
+                leftTuples = getNumTuples(leftOperand->value, relNames, numToJoin, numLeftDistincts);
+
+                if (rightOperand->code == NAME)
+                {
+                    rightTuples = getNumTuples(rightOperand->value, relNames, numToJoin, numRightDistincts);
+                    currentOrFraction = std::min(fractionise(rightTuples, numRightDistincts), fractionise(leftTuples, numLeftDistincts));
+                    maxOrFraction = std::max(maxOrFraction, currentOrFraction);
+                }
+                else
+                {
+                    maxOrFraction = std::max(maxOrFraction, fractionise(leftTuples, numLeftDistincts));
+                }
+            }
+            else
+            { //less than or greater than condition
+                maxOrFraction = std::max(maxOrFraction, 1.0 / 3);
+            }
+        }
+        minAndFraction = std::min(minAndFraction, maxOrFraction);
+    }
+    estimatedTuples = maxJoinTuples * minAndFraction;
+    return estimatedTuples;
 }

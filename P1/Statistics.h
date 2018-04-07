@@ -35,7 +35,16 @@ class Statistics
 
 	bool checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin);
 	bool findAttInRelation(string attName, char *relNames[], int numToJoin);
+	double fractionise(int numTuples, int numDistincts);
+
+	//checks if the join set-subset conditions match, if all the attributes present in parseTree
+	//are also present in some relation from relNames, and updates the joinList if isApply is true
 	void validateJoin(struct AndList *parseTree, char *relNames[], int numToJoin, bool isApply);
+
+	//populates the numDistincts with the number of unique entries the attribute has in its
+	//respective relation, and returns the number of tuples of the containing relation
+	//NOTE:assumes that the attribute exists in at least one relation from relNames[]
+	int getNumTuples(string attName, char *relNames[], int numToJoin, int &numDistincts);
 };
 
 #endif
