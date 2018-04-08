@@ -19,16 +19,16 @@ void Statistics::AddRel(char *relName, int numTuples)
     if (relationMap.find(relName) == relationMap.end())
     {
         //create empty attribute map
-        unordered_map<string, int> tempAttributeMap;
+        unordered_map<string, int> lineAttributeMap;
 
         //insert into relation Map
-        RelationInfo relationInfo = {numTuples, tempAttributeMap};
+        RelationInfo relationInfo = {numTuples, lineAttributeMap};
         relationMap.insert(std::make_pair(relName, relationInfo));
 
         //populating join list with singleton
-        unordered_set<string> tempRel;
-        tempRel.insert(relName);
-        joinList.push_front(tempRel);
+        unordered_set<string> lineRel;
+        lineRel.insert(relName);
+        joinList.push_front(lineRel);
     }
     else
     { //update numTuples
@@ -75,6 +75,49 @@ void Statistics::CopyRel(char *oldName, char *newName)
 
 void Statistics::Read(char *fromWhere)
 {
+    relationMap.clear();
+    FILE *statisticsInfo;
+    statisticsInfo = fopen(fromWhere, "r");
+
+    //If the file does not exist , create an empty file instead of throwing an error
+    if (statisticsInfo == NULL)
+    {
+        statisticsInfo = fopen(fromWhere, "w");
+        fprintf(statisticsInfo, "eof");
+        fclose(statisticsInfo);
+        statisticsInfo = fopen(fromWhere, "r");
+    }
+
+    char line[200], rel[200];
+
+    fscanf(statisticsInfo, "%s", line);
+
+    while (strcmp(line, "eof") != 0)
+    {
+        if (!strcmp(line, "Relation"))
+        {
+            RelationInfo relationInfo;
+            fscanf(statisticsInfo, "%s", line);
+            string relName(line);
+            strcpy(rel, relName.c_str());
+            fscanf(statisticsInfo, "%s", line);
+            relationInfo.numTuples = atoi(line);
+            fscanf(statisticsInfo, "%s", line);
+            fscanf(statisticsInfo, "%s", line);
+
+            while (strcmp(line, "relation") != 0 && strcmp(line, "eof") != 0)
+            {
+                int numDistinct;
+                string attName(line);
+                fscanf(statisticsInfo, "%s", line);
+                numDistinct = atoi(line);
+                relationInfo.attributeMap.insert(pair<string, int>(attName, numDistinct));
+                fscanf(statisticsInfo, "%s", line);
+            }
+            relationMap.insert(pair<string, RelationInfo>(relName, relationInfo));
+        }
+    }
+    fclose(statisticsInfo);
 }
 
 void Statistics::Write(char *fromWhere)
@@ -89,8 +132,9 @@ void Statistics::Write(char *fromWhere)
         char *relName = new char[relItr->first.length() + 1];
         strcpy(relName, relItr->first.c_str());
         fprintf(statisticsInfo, "Relation\n%s \n", relName);
-        fprintf(statisticsInfo, "%d \n tuples\n", relItr->second.numTuples);
-
+        fprintf(statisticsInfo, "%d tuples\n", relItr->second.numTuples);
+        fprintf(statisticsInfo, "Attributes\n";
+        
         //Loop through attribute map
         for (unordered_map<std::string, int>::iterator attItr = relItr->second.attributeMap.begin(); attItr != relItr->second.attributeMap.end(); attItr++)
         {
@@ -100,6 +144,7 @@ void Statistics::Write(char *fromWhere)
             fprintf(statisticsInfo, "%d\n", attItr->second);
         }
     }
+    fprintf(statisticsInfo, "eof");
     fclose(statisticsInfo);
 }
 
