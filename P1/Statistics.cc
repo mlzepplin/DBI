@@ -8,6 +8,23 @@ Statistics::Statistics()
 
 Statistics::Statistics(Statistics &copyMe)
 { //copy constructor, creating a deep copy
+
+    for (unordered_map<string, RelationInfo>::iterator relItr = copyMe.relationMap.begin(); relItr != copyMe.relationMap.end(); relItr++)
+    {
+        string relName = relItr->first;
+        RelationInfo relationInfo;
+        relationInfo.numTuples = relItr->second.numTuples;
+
+        for (unordered_map<std::string, int>::iterator attItr = relItr->second.attributeMap.begin(); attItr != relItr->second.attributeMap.end(); attItr++)
+        {
+            string attName = attItr->first;
+            int numDistinct = attItr->second;
+            relationInfo.attributeMap.insert(pair<std::string, int>(attName, numDistinct));
+        }
+
+        relationMap.insert(pair<std::string, RelationInfo>(relName, relationInfo));
+        relationInfo.attributeMap.clear();
+    }
 }
 
 Statistics::~Statistics()
@@ -127,21 +144,21 @@ void Statistics::Write(char *fromWhere)
     statisticsInfo = fopen(fromWhere, "w");
 
     //Loop through the relation map
-    for (unordered_map<std::string, RelationInfo>::iterator relItr = relationMap.begin(); relItr != relationMap.end(); relItr++)
+    for (unordered_map<std::string, RelationInfo>::iterator relrelItr = relationMap.begin(); relrelItr != relationMap.end(); relrelItr++)
     {
-        char *relName = new char[relItr->first.length() + 1];
-        strcpy(relName, relItr->first.c_str());
+        char *relName = new char[relrelItr->first.length() + 1];
+        strcpy(relName, relrelItr->first.c_str());
         fprintf(statisticsInfo, "Relation\n%s \n", relName);
-        fprintf(statisticsInfo, "%d tuples\n", relItr->second.numTuples);
+        fprintf(statisticsInfo, "%d tuples\n", relrelItr->second.numTuples);
         fprintf(statisticsInfo, "Attributes\n";
         
         //Loop through attribute map
-        for (unordered_map<std::string, int>::iterator attItr = relItr->second.attributeMap.begin(); attItr != relItr->second.attributeMap.end(); attItr++)
+        for (unordered_map<std::string, int>::iterator attrelItr = relrelItr->second.attributeMap.begin(); attrelItr != relrelItr->second.attributeMap.end(); attrelItr++)
         {
-            char *attName = new char[attItr->first.length() + 1];
-            strcpy(attName, attItr->first.c_str());
+            char *attName = new char[attrelItr->first.length() + 1];
+            strcpy(attName, attrelItr->first.c_str());
             fprintf(statisticsInfo, "%s\n", attName);
-            fprintf(statisticsInfo, "%d\n", attItr->second);
+            fprintf(statisticsInfo, "%d\n", attrelItr->second);
         }
     }
     fprintf(statisticsInfo, "eof");
@@ -232,7 +249,7 @@ int Statistics::getNumTuples(string attName, char *relNames[], int numToJoin, in
 void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int numToJoin, bool fromApply)
 { //assumes joinList is populated
     unordered_set<string>::iterator subsetIterator, relNamesSetIterator;
-    list<unordered_set<string>>::iterator joinListItreator;
+    list<unordered_set<string>>::iterator joinListrelItreator;
     unordered_set<string> relNamesSet, subset;
     struct AndList *currentAnd = parseTree;
     struct OrList *currentOr = currentAnd->left;
@@ -252,9 +269,9 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
         bool relationExistsInJoinList = false;
 
         //Note: the list keeps on getting shorter as subsets that completely match --> get removed
-        for (joinListItreator = joinList.begin(); joinListItreator != joinList.end(); joinListItreator++)
+        for (joinListrelItreator = joinList.begin(); joinListrelItreator != joinList.end(); joinListrelItreator++)
         {
-            subset = *joinListItreator;
+            subset = *joinListrelItreator;
             if (subsetIterator != subset.end())
             { //check all member of this subset against relNamesSet
                 relationExistsInJoinList = true;
@@ -268,7 +285,7 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
                     //remember to remove found one's from the relNamesSet
                     relNamesSet.erase(*subsetIterator);
                     if (fromApply)
-                        joinList.remove(*joinListItreator);
+                        joinList.remove(*joinListrelItreator);
                 }
             }
         }
