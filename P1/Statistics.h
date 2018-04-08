@@ -23,6 +23,7 @@ class Statistics
 	Statistics();
 	Statistics(Statistics &copyMe); // Performs deep copy
 	~Statistics();
+
 	void AddRel(char *relName, int numTuples);
 	void AddAtt(char *relName, char *attName, int numDistincts);
 	void CopyRel(char *oldName, char *newName);

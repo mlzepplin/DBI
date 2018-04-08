@@ -3,9 +3,11 @@
 Statistics::Statistics()
 {
 }
+
 Statistics::Statistics(Statistics &copyMe)
 { //copy constructor, creating a deep copy
 }
+
 Statistics::~Statistics()
 {
 }
@@ -31,6 +33,7 @@ void Statistics::AddRel(char *relName, int numTuples)
         relationMap.find(relName)->second.numTuples = numTuples;
     }
 }
+
 void Statistics::AddAtt(char *relName, char *attName, int numDistincts)
 {
     //need to find the relation first
@@ -53,6 +56,7 @@ void Statistics::AddAtt(char *relName, char *attName, int numDistincts)
         }
     }
 }
+
 void Statistics::CopyRel(char *oldName, char *newName)
 {
     //just provides a copy of the relationInfo object
@@ -70,8 +74,31 @@ void Statistics::CopyRel(char *oldName, char *newName)
 void Statistics::Read(char *fromWhere)
 {
 }
+
 void Statistics::Write(char *fromWhere)
 {
+
+    FILE *statisticsInfo;
+    statisticsInfo = fopen(fromWhere, "w");
+
+    //Loop through the relation map
+    for (unordered_map<std::string, RelationInfo>::iterator relItr = relationMap.begin(); relItr != relationMap.end(); itr++)
+    {
+        char *relName = new char[relItr->first.length() + 1];
+        strcpy(relName, relItr->first.c_str());
+        fprintf(statisticsInfo, "Relation\n%s \n", relName);
+        fprintf(statisticsInfo, "%d \n tuples\n", relItr->second.numTuples);
+
+        //Loop through attribute map
+        for (unordered_map<std::string, int>::iterator attItr = relItr->second->attributeMap.begin(); attItr != relItr->second->attributeMap.end(); attItr++)
+        {
+            char *attName = new char[attItr->first.length() + 1];
+            strcpy(attName, attItr->first.c_str());
+            fprintf(statisticsInfo, "%s\n", attName);
+            fprintf(statisticsInfo, "%d\n", attItr->second);
+        }
+    }
+    fclose(statisticsInfo);
 }
 
 bool Statistics::checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin)
@@ -205,10 +232,12 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
         }
     }
 }
+
 double Statistics::fractionise(int numTuples, int numDistincts)
 {
     return (numTuples - numDistincts) / (double)numTuples;
 }
+
 void Statistics::Apply(struct AndList *parseTree, char *relNames[], int numToJoin)
 {
     unordered_set<string> subset;
@@ -221,6 +250,7 @@ void Statistics::Apply(struct AndList *parseTree, char *relNames[], int numToJoi
     //add the bigger set of relNames to the joinList
     joinList.push_front(subset);
 }
+
 double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numToJoin)
 {
     double estimatedTuples = 1.0;
