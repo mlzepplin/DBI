@@ -1,4 +1,6 @@
 #include "Statistics.h"
+#include "cstring"
+#include "iostream"
 
 Statistics::Statistics()
 {
@@ -82,7 +84,7 @@ void Statistics::Write(char *fromWhere)
     statisticsInfo = fopen(fromWhere, "w");
 
     //Loop through the relation map
-    for (unordered_map<std::string, RelationInfo>::iterator relItr = relationMap.begin(); relItr != relationMap.end(); itr++)
+    for (unordered_map<std::string, RelationInfo>::iterator relItr = relationMap.begin(); relItr != relationMap.end(); relItr++)
     {
         char *relName = new char[relItr->first.length() + 1];
         strcpy(relName, relItr->first.c_str());
@@ -90,7 +92,7 @@ void Statistics::Write(char *fromWhere)
         fprintf(statisticsInfo, "%d \n tuples\n", relItr->second.numTuples);
 
         //Loop through attribute map
-        for (unordered_map<std::string, int>::iterator attItr = relItr->second->attributeMap.begin(); attItr != relItr->second->attributeMap.end(); attItr++)
+        for (unordered_map<std::string, int>::iterator attItr = relItr->second.attributeMap.begin(); attItr != relItr->second.attributeMap.end(); attItr++)
         {
             char *attName = new char[attItr->first.length() + 1];
             strcpy(attName, attItr->first.c_str());

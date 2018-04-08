@@ -6,7 +6,8 @@
 #include <vector>
 #include <list>
 #include <string>
-#include "Schema.h"
+using namespace std;
+
 struct RelationInfo
 {
 	int numTuples;
@@ -16,7 +17,7 @@ struct RelationInfo
 class Statistics
 {
   private:
-	std::unordered_map<std::string, RelationInfo> relationMap;
+	std::unordered_map<string, RelationInfo> relationMap;
 	std::list<unordered_set<string>> joinList;
 
   public:
