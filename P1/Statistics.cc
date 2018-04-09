@@ -11,7 +11,7 @@ Statistics::Statistics()
 Statistics::Statistics(Statistics &copyMe)
 { //copy constructor, creating a deep copy
 
-    for (unordered_map<string, RelationInfo>::iterator relItr = copyMe.relationMap.begin(); relItr != copyMe.relationMap.end(); relItr++)
+    for (unordered_map<string, RelationInfo>::iterator relItr = copyMe.relationMap->begin(); relItr != copyMe.relationMap->end(); relItr++)
     {
         string relName = relItr->first;
         RelationInfo relationInfo;
@@ -24,7 +24,7 @@ Statistics::Statistics(Statistics &copyMe)
             relationInfo.attributeMap.insert(pair<std::string, int>(attName, numDistinct));
         }
 
-        relationMap.insert(pair<std::string, RelationInfo>(relName, relationInfo));
+        relationMap->insert(pair<std::string, RelationInfo>(relName, relationInfo));
         relationInfo.attributeMap.clear();
     }
 }
@@ -40,7 +40,7 @@ void Statistics::AddRel(char *relName, int numTuples)
     if (relationMap->find(relName) == relationMap->end())
     {
         //create empty attribute map
-        unordered_map<string, int> lineAttributeMap;
+        unordered_map<string, int> tempAttributeMap;
 
         //insert into relation Map
         RelationInfo relationInfo = {numTuples, tempAttributeMap};
@@ -96,7 +96,7 @@ void Statistics::CopyRel(char *oldName, char *newName)
 
 void Statistics::Read(char *fromWhere)
 {
-    relationMap.clear();
+    relationMap->clear();
     FILE *statisticsInfo;
     statisticsInfo = fopen(fromWhere, "r");
 
@@ -135,7 +135,7 @@ void Statistics::Read(char *fromWhere)
                 relationInfo.attributeMap.insert(pair<string, int>(attName, numDistinct));
                 fscanf(statisticsInfo, "%s", line);
             }
-            relationMap.insert(pair<string, RelationInfo>(relName, relationInfo));
+            relationMap->insert(pair<string, RelationInfo>(relName, relationInfo));
         }
     }
     fclose(statisticsInfo);
@@ -150,17 +150,17 @@ void Statistics::Write(char *fromWhere)
     //Loop through the relation map
     for (unordered_map<std::string, RelationInfo>::iterator relItr = relationMap->begin(); relItr != relationMap->end(); relItr++)
     {
-        char *relName = new char[relrelItr->first.length() + 1];
-        strcpy(relName, relrelItr->first.c_str());
+        char *relName = new char[relItr->first.length() + 1];
+        strcpy(relName, relItr->first.c_str());
         fprintf(statisticsInfo, "Relation\n%s \n", relName);
-        fprintf(statisticsInfo, "%d tuples\n", relrelItr->second.numTuples);
+        fprintf(statisticsInfo, "%d tuples\n", relItr->second.numTuples);
         fprintf(statisticsInfo, "Attributes\n");
 
         //Loop through attribute map
         for (unordered_map<std::string, int>::iterator attItr = relItr->second.attributeMap.begin(); attItr != relItr->second.attributeMap.end(); attItr++)
         {
             char *attName = new char[attItr->first.length() + 1];
-            strcpy(attName, attrelItr->first.c_str());
+            strcpy(attName, attItr->first.c_str());
             fprintf(statisticsInfo, "%s\n", attName);
             fprintf(statisticsInfo, "%d\n", attItr->second);
         }
