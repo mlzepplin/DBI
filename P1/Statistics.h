@@ -11,6 +11,7 @@ using namespace std;
 struct RelationInfo
 {
 	int numTuples;
+	int numRelations;
 	std::unordered_map<std::string, int> attributeMap;
 } typedef RelationInfo;
 
@@ -18,7 +19,7 @@ class Statistics
 {
   private:
 	std::unordered_map<string, RelationInfo> *relationMap;
-	std::list<unordered_set<string>> *joinList;
+	double joinEstimate;
 
   public:
 	Statistics();
