@@ -17,13 +17,14 @@ struct RelationInfo
 class Statistics
 {
   private:
-	std::unordered_map<string, RelationInfo> relationMap;
-	std::list<unordered_set<string>> joinList;
+	std::unordered_map<string, RelationInfo>* relationMap;
+	std::list<unordered_set<string>>* joinList;
 
   public:
 	Statistics();
 	Statistics(Statistics &copyMe); // Performs deep copy
-	~Statistics();
+	~Statistics(
+	);
 
 	void AddRel(char *relName, int numTuples);
 	void AddAtt(char *relName, char *attName, int numDistincts);

@@ -86,7 +86,7 @@ char *fileName = "Statistics.txt";
 void q0 (){
 
 	Statistics s;
-        char *relName[] = {"supplier","partsupp"};
+    char *relName[] = {"supplier","partsupp"};
 
 	
 	s.AddRel(relName[0],10000);
@@ -99,25 +99,28 @@ void q0 (){
 
 	yy_scan_string(cnf);
 	yyparse();
-	double result = s.Estimate(final, relName, 2);
-	if(result!=800000)
-		cout<<"error in estimating Q1 before apply \n ";
+	// double result = s.Estimate(final, relName, 2);
+	// PrintAndList(final);
+	// //cout<<"test result"<<result<<endl;
+	// if(result!=800000)
+	// 	cout<<"error in estimating Q1 before apply \n ";
+	cout<<"before apply"<<endl;
 	s.Apply(final, relName, 2);
-
+	cout<<"after apply"<<endl;
 	// test write and read
-	s.Write(fileName);
+	//s.Write(fileName);
 
 	//reload the statistics object from file
-	Statistics s1;
-	s1.Read(fileName);	
-	cnf = "(s_suppkey>1000)";	
-	yy_scan_string(cnf);
-	yyparse();
-	double dummy = s1.Estimate(final, relName, 2);
-	if(fabs(dummy*3.0-result) >0.1)
-	{
-		cout<<"Read or write or last apply is not correct\n";
-	}	
+	// Statistics s1;
+	// s1.Read(fileName);	
+	// cnf = "(s_suppkey>1000)";	
+	// yy_scan_string(cnf);
+	// yyparse();
+	// double dummy = s1.Estimate(final, relName, 2);
+	// if(fabs(dummy*3.0-result) >0.1)
+	// {
+	// 	cout<<"Read or write or last apply is not correct\n";
+	// }	
 	
 }
 

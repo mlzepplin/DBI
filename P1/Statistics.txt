@@ -1,0 +1,12 @@
+Relation
+partsupp 
+800000 
+ tuples
+ps_suppkey
+10000
+Relation
+supplier 
+10000 
+ tuples
+s_suppkey
+10000
