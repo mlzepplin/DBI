@@ -17,14 +17,13 @@ struct RelationInfo
 class Statistics
 {
   private:
-	std::unordered_map<string, RelationInfo>* relationMap;
-	std::list<unordered_set<string>>* joinList;
+	std::unordered_map<string, RelationInfo> *relationMap;
+	std::list<unordered_set<string>> *joinList;
 
   public:
 	Statistics();
 	Statistics(Statistics &copyMe); // Performs deep copy
-	~Statistics(
-	);
+	~Statistics();
 
 	void AddRel(char *relName, int numTuples);
 	void AddAtt(char *relName, char *attName, int numDistincts);
@@ -38,7 +37,6 @@ class Statistics
 
 	bool checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin);
 	bool findAttInRelation(string attName, char *relNames[], int numToJoin);
-	double fractionise(int numTuples, int numDistincts);
 
 	//checks if the join set-subset conditions match, if all the attributes present in parseTree
 	//are also present in some relation from relNames, and updates the joinList if isApply is true

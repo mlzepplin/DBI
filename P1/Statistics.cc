@@ -115,7 +115,7 @@ void Statistics::Read(char *fromWhere)
 
     while (strcmp(line, "eof") != 0)
     {
-        if (!strcmp(line, "Relation"))
+        if (!strcmp(line, "Relation:"))
         {
             RelationInfo relationInfo;
             fscanf(statisticsInfo, "%s", line);
@@ -152,9 +152,9 @@ void Statistics::Write(char *fromWhere)
     {
         char *relName = new char[relItr->first.length() + 1];
         strcpy(relName, relItr->first.c_str());
-        fprintf(statisticsInfo, "Relation\n%s \n", relName);
+        fprintf(statisticsInfo, "Relation:\n%s \n", relName);
         fprintf(statisticsInfo, "%d tuples\n", relItr->second.numTuples);
-        fprintf(statisticsInfo, "Attributes\n");
+        fprintf(statisticsInfo, "Attributes:\n");
 
         //Loop through attribute map
         for (unordered_map<std::string, int>::iterator attItr = relItr->second.attributeMap.begin(); attItr != relItr->second.attributeMap.end(); attItr++)
@@ -323,11 +323,6 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
     }
 }
 
-double Statistics::fractionise(int numTuples, int numDistincts)
-{
-    return (numTuples - numDistincts) / (double)numTuples;
-}
-
 void Statistics::Apply(struct AndList *parseTree, char *relNames[], int numToJoin)
 {
     unordered_set<string> subset;
@@ -393,10 +388,11 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
             int numRightDistincts = 0, numLeftDistincts = 0;
             int rightTuples = 0, leftTuples = 0;
             double currentOrTuplesEstimate = 0.0;
+
+            leftTuples = getNumTuples(leftOperand->value, relNames, numToJoin, numLeftDistincts);
+
             if (currentComparisonOp->code == EQUALS)
             {
-                leftTuples = getNumTuples(leftOperand->value, relNames, numToJoin, numLeftDistincts);
-
                 if (rightOperand->code == NAME)
                 {
                     double numDistinctOfSmallerRelation = 1.0;
