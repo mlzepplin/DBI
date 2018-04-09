@@ -244,7 +244,10 @@ int Statistics::getNumTuples(string attName, char *relNames[], int numToJoin, in
         attMap = relMapIter->second.attributeMap;
         attMapIter = attMap.find(attName);
 
-        break;
+        if (attMapIter == attMap.end())
+            continue;
+        else
+            break;
     }
     numDistincts = attMapIter->second;
     return relMapIter->second.numTuples;
@@ -376,42 +379,53 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
     }
 
     //reducing the maxTuples by factoring with all the attribute conditions
-    double minAndFraction = 1.0;
-    while (currentAnd->rightAnd != NULL)
+    double minAndTuplesEstimate = maxJoinTuples;
+    do
     {
         currentOr = currentAnd->left;
 
-        double maxOrFraction = 0.0;
-        while (currentOr->rightOr != NULL)
+        double maxOrTuplesEstimate = 0.0;
+        do
         {
             currentComparisonOp = currentOr->left;
             leftOperand = currentComparisonOp->left;
             rightOperand = currentComparisonOp->right;
             int numRightDistincts = 0, numLeftDistincts = 0;
             int rightTuples = 0, leftTuples = 0;
-            double currentOrFraction = 0.0;
+            double currentOrTuplesEstimate = 0.0;
             if (currentComparisonOp->code == EQUALS)
             {
                 leftTuples = getNumTuples(leftOperand->value, relNames, numToJoin, numLeftDistincts);
 
                 if (rightOperand->code == NAME)
                 {
+                    double numDistinctOfSmallerRelation = 1.0;
                     rightTuples = getNumTuples(rightOperand->value, relNames, numToJoin, numRightDistincts);
-                    currentOrFraction = std::min(fractionise(rightTuples, numRightDistincts), fractionise(leftTuples, numLeftDistincts));
-                    maxOrFraction = std::max(maxOrFraction, currentOrFraction);
+
+                    if (leftTuples > rightTuples)
+                        numDistinctOfSmallerRelation = numLeftDistincts;
+                    else
+                        numDistinctOfSmallerRelation = numRightDistincts;
+
+                    currentOrTuplesEstimate = ((double)leftTuples * rightTuples) / numDistinctOfSmallerRelation;
+
+                    maxOrTuplesEstimate = std::max(maxOrTuplesEstimate, currentOrTuplesEstimate);
                 }
                 else
                 {
-                    maxOrFraction = std::max(maxOrFraction, fractionise(leftTuples, numLeftDistincts));
+                    maxOrTuplesEstimate = std::max(maxOrTuplesEstimate, leftTuples / (double)numLeftDistincts);
                 }
             }
             else
             { //less than or greater than condition
-                maxOrFraction = std::max(maxOrFraction, 1.0 / 3);
+                maxOrTuplesEstimate = std::max(maxOrTuplesEstimate, (1.0 / 3) * leftTuples);
             }
-        }
-        minAndFraction = std::min(minAndFraction, maxOrFraction);
-    }
-    estimatedTuples = maxJoinTuples * minAndFraction;
+        } while (currentOr->rightOr != NULL);
+
+        minAndTuplesEstimate = std::min(minAndTuplesEstimate, maxOrTuplesEstimate);
+
+    } while (currentAnd->rightAnd != NULL);
+
+    estimatedTuples = minAndTuplesEstimate;
     return estimatedTuples;
 }
