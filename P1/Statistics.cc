@@ -4,6 +4,8 @@
 
 Statistics::Statistics()
 {
+    joinList = new list<unordered_set<string> >();
+    relationMap = new unordered_map<string, RelationInfo>();
 }
 
 Statistics::Statistics(Statistics &copyMe)
@@ -11,42 +13,44 @@ Statistics::Statistics(Statistics &copyMe)
 }
 
 Statistics::~Statistics()
-{
+{   delete joinList;
+    delete relationMap;
 }
 
 void Statistics::AddRel(char *relName, int numTuples)
 {
-    if (relationMap.find(relName) == relationMap.end())
+    if (relationMap->find(relName) == relationMap->end())
     {
         //create empty attribute map
         unordered_map<string, int> tempAttributeMap;
 
         //insert into relation Map
         RelationInfo relationInfo = {numTuples, tempAttributeMap};
-        relationMap.insert(std::make_pair(relName, relationInfo));
+        relationMap->insert(std::make_pair(relName, relationInfo));
 
         //populating join list with singleton
         unordered_set<string> tempRel;
         tempRel.insert(relName);
-        joinList.push_front(tempRel);
+        joinList->push_front(tempRel);
     }
     else
     { //update numTuples
-        relationMap.find(relName)->second.numTuples = numTuples;
+        relationMap->find(relName)->second.numTuples = numTuples;
     }
+    
 }
 
 void Statistics::AddAtt(char *relName, char *attName, int numDistincts)
 {
     //need to find the relation first
-    if (relationMap.find(relName) == relationMap.end())
+    if (relationMap->find(relName) == relationMap->end())
     {
         cerr << "the relation to which you're trying to add attribute, does not exist!!" << endl;
         exit(1);
     }
     else
     {
-        RelationInfo *relationInfo = &relationMap.find(relName)->second;
+        RelationInfo *relationInfo = &relationMap->find(relName)->second;
         //check if attribute already exists
         if (relationInfo->attributeMap.find(attName) == relationInfo->attributeMap.end())
         { //if not, then add the attribute
@@ -62,10 +66,10 @@ void Statistics::AddAtt(char *relName, char *attName, int numDistincts)
 void Statistics::CopyRel(char *oldName, char *newName)
 {
     //just provides a copy of the relationInfo object
-    RelationInfo relationInfo = relationMap.find(oldName)->second;
+    RelationInfo relationInfo = relationMap->find(oldName)->second;
 
-    if (relationMap.find(newName) != relationMap.end())
-        relationMap.insert(std::make_pair(newName, relationInfo));
+    if (relationMap->find(newName) != relationMap->end())
+        relationMap->insert(std::make_pair(newName, relationInfo));
     else
     {
         cerr << "relation wih newName already exists" << endl;
@@ -84,7 +88,7 @@ void Statistics::Write(char *fromWhere)
     statisticsInfo = fopen(fromWhere, "w");
 
     //Loop through the relation map
-    for (unordered_map<std::string, RelationInfo>::iterator relItr = relationMap.begin(); relItr != relationMap.end(); relItr++)
+    for (unordered_map<std::string, RelationInfo>::iterator relItr = relationMap->begin(); relItr != relationMap->end(); relItr++)
     {
         char *relName = new char[relItr->first.length() + 1];
         strcpy(relName, relItr->first.c_str());
@@ -147,8 +151,8 @@ bool Statistics::findAttInRelation(string attName, char *relNames[], int numToJo
 
     for (int i = 0; i < numToJoin; i++)
     {
-        relMapIter = relationMap.find(relNames[i]);
-        if (relMapIter == relationMap.end())
+        relMapIter = relationMap->find(relNames[i]);
+        if (relMapIter == relationMap->end())
             return false;
         else
         {
@@ -173,7 +177,7 @@ int Statistics::getNumTuples(string attName, char *relNames[], int numToJoin, in
 
     for (int i = 0; i < numToJoin; i++)
     {
-        relMapIter = relationMap.find(relNames[i]);
+        relMapIter = relationMap->find(relNames[i]);
 
         attMap = relMapIter->second.attributeMap;
         attMapIter = attMap.find(attName);
@@ -186,12 +190,14 @@ int Statistics::getNumTuples(string attName, char *relNames[], int numToJoin, in
 
 void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int numToJoin, bool fromApply)
 { //assumes joinList is populated
+    cout<<"val join 1"<<endl;
     unordered_set<string>::iterator subsetIterator, relNamesSetIterator;
     list<unordered_set<string>>::iterator joinListItreator;
-    unordered_set<string> relNamesSet, subset;
+    unordered_set<string> *relNamesSet, subset;
+    relNamesSet = new unordered_set<string>();
     struct AndList *currentAnd = parseTree;
     struct OrList *currentOr = currentAnd->left;
-
+    cout<<"val join 2"<<endl;
     if (!checkAttributes(parseTree, relNames, numToJoin))
     {
         cerr << "either attribute not present in relNames or relNames is not a subset of relationMap" << endl;
@@ -199,40 +205,50 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
     }
     //making a set version of relNames, to reduce internal lookups to O(1)
     for (int i = 0; i < numToJoin; i++)
-        relNamesSet.insert(relNames[i]);
-
-    for (relNamesSetIterator = relNamesSet.begin(); relNamesSetIterator != relNamesSet.end(); relNamesSetIterator++)
-    {
+        relNamesSet->insert(relNames[i]);
+    cout<<"val join 3"<<endl;
+    for (relNamesSetIterator = relNamesSet->begin(); relNamesSetIterator != relNamesSet->end(); relNamesSetIterator++)
+    {   cout<<"REL NAMES SET ITER"<<endl;
         //get the set to which current relation from relNames belongs
         bool relationExistsInJoinList = false;
 
         //Note: the list keeps on getting shorter as subsets that completely match --> get removed
-        for (joinListItreator = joinList.begin(); joinListItreator != joinList.end(); joinListItreator++)
+        for (joinListItreator = joinList->begin(); joinListItreator != joinList->end(); joinListItreator++)
         {
+            //take a subset from the joinList
+            cout<<"val join alloc subset"<<endl;
             subset = *joinListItreator;
-            if (subsetIterator != subset.end())
-            { //check all member of this subset against relNamesSet
-                relationExistsInJoinList = true;
-                for (subsetIterator = subset.find(*relNamesSetIterator); subsetIterator != subset.end(); subsetIterator++)
-                {
-                    if (relNamesSet.find(*subsetIterator) == relNamesSet.end())
+
+             //if current relNames exists in this subset
+           subsetIterator = subset.find(*relNamesSetIterator); 
+           if(subsetIterator != subset.end()){
+               relationExistsInJoinList = true;
+               //check all member of this subset against relNamesSet
+               for(subsetIterator = subset.begin();subsetIterator != subset.end();subsetIterator++){
+                    
+                    cout<<" val join check"<<endl;
+                    //if unable to locate even a single one
+                    if (relNamesSet->find(*subsetIterator) == relNamesSet->end())
                     {
                         cerr << "can't predict join, subset mismatch" << endl;
                         exit(1);
                     }
-                    //remember to remove found one's from the relNamesSet
-                    relNamesSet.erase(*subsetIterator);
-                    if (fromApply)
-                        joinList.remove(*joinListItreator);
-                }
-            }
+                    //remember to remove the found one's from the relNamesSet
+                    relNamesSet->erase(*subsetIterator);
+               }
+               if (fromApply)
+                    joinList->remove(*joinListItreator);
+           }
+           
+            
         }
         if (!relationExistsInJoinList)
         {
-            cerr << "can't predict join, a relation doesn't even exist!" << endl;
+            cerr << "can't predict join relation "<<*relNamesSetIterator<<" doesn't even exist!" << endl;
             exit(1);
         }
     }
+    cout<<"val join done"<<endl;
 }
 
 double Statistics::fractionise(int numTuples, int numDistincts)
@@ -244,13 +260,14 @@ void Statistics::Apply(struct AndList *parseTree, char *relNames[], int numToJoi
 {
     unordered_set<string> subset;
     validateJoin(parseTree, relNames, numToJoin, true);
+    cout<<"apply after validate"<<endl;
 
     //everything went fine, so we'll be able to predict the join output for relNames
     for (int i = 0; i < numToJoin; i++)
         subset.insert(relNames[i]);
 
     //add the bigger set of relNames to the joinList
-    joinList.push_front(subset);
+    joinList->push_front(subset);
 }
 
 double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numToJoin)
@@ -263,7 +280,7 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
         if (numToJoin == 1)
         {
             //selection
-            return relationMap.find(relNames[0])->second.numTuples;
+            return relationMap->find(relNames[0])->second.numTuples;
         }
         else
         {
@@ -272,7 +289,7 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
             //cross product bw all relNames
             for (int i = 0; i < numToJoin; i++)
             {
-                estimatedTuples *= relationMap.find(relNames[i])->second.numTuples;
+                estimatedTuples *= relationMap->find(relNames[i])->second.numTuples;
             }
             return estimatedTuples;
         }
@@ -282,12 +299,13 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
     struct ComparisonOp *currentComparisonOp;
     struct Operand *leftOperand, *rightOperand;
     string attName;
-    int maxJoinTuples;
+    double maxJoinTuples=1.0;
 
     //compute max possible join tuples
     for (int i = 0; i < numToJoin; i++)
     {
-        maxJoinTuples *= relationMap.find(relNames[i])->second.numTuples;
+        maxJoinTuples *= relationMap->find(relNames[i])->second.numTuples;
+        
     }
 
     //reducing the maxTuples by factoring with all the attribute conditions
