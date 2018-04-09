@@ -183,10 +183,10 @@ unordered_set<string> Statistics::checkAttributes(struct AndList *parseTree, cha
     if (parseTree == NULL)
         return matchedRelNames; //return empty
 
-    while (currentAnd != NULL)
+    do
     {
         currentOr = currentAnd->left;
-        while (currentOr != NULL)
+        do
         {
             currentComparisonOp = currentOr->left;
             leftOperand = currentComparisonOp->left;
@@ -204,9 +204,9 @@ unordered_set<string> Statistics::checkAttributes(struct AndList *parseTree, cha
                 }
             }
             currentOr = currentOr->rightOr;
-        }
+        } while (currentOr != NULL);
         currentAnd = currentAnd->rightAnd;
-    }
+    } while (currentAnd != NULL);
     return matchedRelNames;
 }
 
@@ -227,7 +227,7 @@ string Statistics::findAttInRelation(string attName, char *relNames[], int numTo
             attMap = relMapIter->second.attributeMap;
             attMapIter = attMap.find(attName);
             if (attMapIter == attMap.end())
-                exit(1);
+                continue;
             else
             { //return matched rel name
                 return relMapIter->first;
