@@ -68,6 +68,11 @@ void Statistics::AddAtt(char *relName, char *attName, int numDistincts)
     else
     {
         RelationInfo *relationInfo = &relationMap->find(relName)->second;
+
+        //If numDistincts is initially passed in as a –1, then the number of distincts is assumed to be equal to the number of tuples in the associated relation.
+        if (numDistincts == -1)
+            numDistincts = relationInfo->numTuples;
+
         //check if attribute already exists
         if (relationInfo->attributeMap.find(attName) == relationInfo->attributeMap.end())
         { //if not, then add the attribute
