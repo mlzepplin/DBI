@@ -10,6 +10,23 @@ Statistics::Statistics()
 
 Statistics::Statistics(Statistics &copyMe)
 { //copy constructor, creating a deep copy
+
+    for (unordered_map<string, RelationInfo>::iterator relItr = copyMe.relationMap.begin(); relItr != copyMe.relationMap.end(); relItr++)
+    {
+        string relName = relItr->first;
+        RelationInfo relationInfo;
+        relationInfo.numTuples = relItr->second.numTuples;
+
+        for (unordered_map<std::string, int>::iterator attItr = relItr->second.attributeMap.begin(); attItr != relItr->second.attributeMap.end(); attItr++)
+        {
+            string attName = attItr->first;
+            int numDistinct = attItr->second;
+            relationInfo.attributeMap.insert(pair<std::string, int>(attName, numDistinct));
+        }
+
+        relationMap.insert(pair<std::string, RelationInfo>(relName, relationInfo));
+        relationInfo.attributeMap.clear();
+    }
 }
 
 Statistics::~Statistics()
@@ -23,7 +40,7 @@ void Statistics::AddRel(char *relName, int numTuples)
     if (relationMap->find(relName) == relationMap->end())
     {
         //create empty attribute map
-        unordered_map<string, int> tempAttributeMap;
+        unordered_map<string, int> lineAttributeMap;
 
         //insert into relation Map
         RelationInfo relationInfo = {numTuples, tempAttributeMap};
@@ -33,6 +50,7 @@ void Statistics::AddRel(char *relName, int numTuples)
         unordered_set<string> tempRel;
         tempRel.insert(relName);
         joinList->push_front(tempRel);
+
     }
     else
     { //update numTuples
@@ -79,6 +97,49 @@ void Statistics::CopyRel(char *oldName, char *newName)
 
 void Statistics::Read(char *fromWhere)
 {
+    relationMap.clear();
+    FILE *statisticsInfo;
+    statisticsInfo = fopen(fromWhere, "r");
+
+    //If the file does not exist , create an empty file instead of throwing an error
+    if (statisticsInfo == NULL)
+    {
+        statisticsInfo = fopen(fromWhere, "w");
+        fprintf(statisticsInfo, "eof");
+        fclose(statisticsInfo);
+        statisticsInfo = fopen(fromWhere, "r");
+    }
+
+    char line[200], rel[200];
+
+    fscanf(statisticsInfo, "%s", line);
+
+    while (strcmp(line, "eof") != 0)
+    {
+        if (!strcmp(line, "Relation"))
+        {
+            RelationInfo relationInfo;
+            fscanf(statisticsInfo, "%s", line);
+            string relName(line);
+            strcpy(rel, relName.c_str());
+            fscanf(statisticsInfo, "%s", line);
+            relationInfo.numTuples = atoi(line);
+            fscanf(statisticsInfo, "%s", line);
+            fscanf(statisticsInfo, "%s", line);
+
+            while (strcmp(line, "relation") != 0 && strcmp(line, "eof") != 0)
+            {
+                int numDistinct;
+                string attName(line);
+                fscanf(statisticsInfo, "%s", line);
+                numDistinct = atoi(line);
+                relationInfo.attributeMap.insert(pair<string, int>(attName, numDistinct));
+                fscanf(statisticsInfo, "%s", line);
+            }
+            relationMap.insert(pair<string, RelationInfo>(relName, relationInfo));
+        }
+    }
+    fclose(statisticsInfo);
 }
 
 void Statistics::Write(char *fromWhere)
@@ -90,20 +151,22 @@ void Statistics::Write(char *fromWhere)
     //Loop through the relation map
     for (unordered_map<std::string, RelationInfo>::iterator relItr = relationMap->begin(); relItr != relationMap->end(); relItr++)
     {
-        char *relName = new char[relItr->first.length() + 1];
-        strcpy(relName, relItr->first.c_str());
+        char *relName = new char[relrelItr->first.length() + 1];
+        strcpy(relName, relrelItr->first.c_str());
         fprintf(statisticsInfo, "Relation\n%s \n", relName);
-        fprintf(statisticsInfo, "%d \n tuples\n", relItr->second.numTuples);
-
+        fprintf(statisticsInfo, "%d tuples\n", relrelItr->second.numTuples);
+        fprintf(statisticsInfo, "Attributes\n";
+        
         //Loop through attribute map
         for (unordered_map<std::string, int>::iterator attItr = relItr->second.attributeMap.begin(); attItr != relItr->second.attributeMap.end(); attItr++)
         {
             char *attName = new char[attItr->first.length() + 1];
-            strcpy(attName, attItr->first.c_str());
+            strcpy(attName, attrelItr->first.c_str());
             fprintf(statisticsInfo, "%s\n", attName);
             fprintf(statisticsInfo, "%d\n", attItr->second);
         }
     }
+    fprintf(statisticsInfo, "eof");
     fclose(statisticsInfo);
 }
 
@@ -192,9 +255,11 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
 { //assumes joinList is populated
 
     unordered_set<string>::iterator subsetIterator, relNamesSetIterator;
+
     list<unordered_set<string>>::iterator joinListItreator;
     unordered_set<string> *relNamesSet, subset;
     relNamesSet = new unordered_set<string>();
+
     struct AndList *currentAnd = parseTree;
     struct OrList *currentOr = currentAnd->left;
 
@@ -228,6 +293,7 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
             if (relNamesSetIterator == relNamesSet->end())
                 return;
             subsetIterator = subset.find(*relNamesSetIterator);
+          
             if (subsetIterator != subset.end())
             {
                 relationExistsInJoinList = true;
@@ -242,8 +308,10 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
                         cerr << "can't predict join, subset mismatch" << endl;
                         exit(1);
                     }
+
                     //remember to remove the found one's from the relNamesSet
                     relNamesSetIterator = relNamesSet->erase(relNamesSetIterator);
+
                 }
                 if (fromApply)
                     joinListItreator = joinList->erase(joinListItreator);
