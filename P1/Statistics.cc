@@ -182,10 +182,11 @@ unordered_set<string> Statistics::checkAttributes(struct AndList *parseTree, cha
     string attName;
     if (parseTree == NULL)
         return matchedRelNames; //return empty
-    while (currentAnd->rightAnd != NULL)
+
+    while (currentAnd != NULL)
     {
         currentOr = currentAnd->left;
-        while (currentOr->rightOr != NULL)
+        while (currentOr != NULL)
         {
             currentComparisonOp = currentOr->left;
             leftOperand = currentComparisonOp->left;
@@ -202,7 +203,9 @@ unordered_set<string> Statistics::checkAttributes(struct AndList *parseTree, cha
                     matchedRelNames.insert(findAttInRelation(attName, relNames, numToJoin));
                 }
             }
+            currentOr = currentOr->rightOr;
         }
+        currentAnd = currentAnd->rightAnd;
     }
     return matchedRelNames;
 }
@@ -284,14 +287,14 @@ unordered_set<string> Statistics::validateJoin(struct AndList *parseTree, char *
     for (int i = 0; i < numToJoin; i++)
         relNamesSet->insert(relNames[i]);
 
-    for (relNamesSetIter = relNamesSet->begin(); relNamesSetIter != relNamesSet->end(); ++relMapIter)
+    for (relNamesSetIter = relNamesSet->begin(); relNamesSetIter != relNamesSet->end();)
     {
 
         //get the set to which current relation from relNames belongs
         bool relationExistsInRelationMap = false;
 
         //Note: the list keeps on getting shorter as subsets that completely match --> get removed
-        for (relMapIter = relationMap->begin(); relMapIter != relationMap->end();)
+        for (relMapIter = relationMap->begin(); relMapIter != relationMap->end(); ++relMapIter)
         {
 
             //if current relNames is a substring of current relMapIter's key
@@ -340,7 +343,7 @@ void Statistics::Apply(struct AndList *parseTree, char *relNames[], int numToJoi
     unordered_map<string, int> attMap;
     unordered_map<string, int>::iterator attMapIter;
     matchedRelSet = validateJoin(parseTree, relNames, numToJoin);
-    char *newKey;
+    char *newKey = new char[200];
 
     //everything went fine, so we'll be able to predict the join output for relNames
     for (int i = 0; i < numToJoin; i++)
