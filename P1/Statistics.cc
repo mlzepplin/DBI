@@ -50,7 +50,6 @@ void Statistics::AddRel(char *relName, int numTuples)
         unordered_set<string> tempRel;
         tempRel.insert(relName);
         joinList->push_front(tempRel);
-
     }
     else
     { //update numTuples
@@ -155,8 +154,8 @@ void Statistics::Write(char *fromWhere)
         strcpy(relName, relrelItr->first.c_str());
         fprintf(statisticsInfo, "Relation\n%s \n", relName);
         fprintf(statisticsInfo, "%d tuples\n", relrelItr->second.numTuples);
-        fprintf(statisticsInfo, "Attributes\n";
-        
+        fprintf(statisticsInfo, "Attributes\n");
+
         //Loop through attribute map
         for (unordered_map<std::string, int>::iterator attItr = relItr->second.attributeMap.begin(); attItr != relItr->second.attributeMap.end(); attItr++)
         {
@@ -272,10 +271,6 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
     for (int i = 0; i < numToJoin; i++)
         relNamesSet->insert(relNames[i]);
 
-    // for(int i=0;i<joinList.size();i++){
-
-    // }
-
     for (relNamesSetIterator = relNamesSet->begin(); relNamesSetIterator != relNamesSet->end();)
     {
 
@@ -286,14 +281,14 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
         for (joinListItreator = joinList->begin(); joinListItreator != joinList->end();)
         {
             //take a subset from the joinList
-
             subset = *joinListItreator;
 
             //if current relNames exists in this subset
             if (relNamesSetIterator == relNamesSet->end())
                 return;
+
             subsetIterator = subset.find(*relNamesSetIterator);
-          
+
             if (subsetIterator != subset.end())
             {
                 relationExistsInJoinList = true;
@@ -301,7 +296,6 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
                 for (subsetIterator = subset.begin(); subsetIterator != subset.end(); subsetIterator++)
                 {
 
-                    cout << " val join check" << endl;
                     //if unable to locate even a single one
                     if (relNamesSet->find(*subsetIterator) == relNamesSet->end())
                     {
@@ -311,7 +305,6 @@ void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int n
 
                     //remember to remove the found one's from the relNamesSet
                     relNamesSetIterator = relNamesSet->erase(relNamesSetIterator);
-
                 }
                 if (fromApply)
                     joinListItreator = joinList->erase(joinListItreator);
