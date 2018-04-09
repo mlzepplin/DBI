@@ -11,10 +11,10 @@ using namespace std;
 struct RelationInfo
 {
 	int numTuples;
-	int numRelations;
 	std::unordered_map<std::string, int> attributeMap;
 } typedef RelationInfo;
 
+typedef unordered_map<string, RelationInfo>::iterator RelMapIter;
 class Statistics
 {
   private:
@@ -36,12 +36,13 @@ class Statistics
 	void Apply(struct AndList *parseTree, char *relNames[], int numToJoin);
 	double Estimate(struct AndList *parseTree, char **relNames, int numToJoin);
 
-	bool checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin);
-	bool findAttInRelation(string attName, char *relNames[], int numToJoin);
+	unordered_set<string> checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin);
+	string findAttInRelation(string attName, char *relNames[], int numToJoin);
+	vector<string> tokeniseKey(string input);
 
 	//checks if the join set-subset conditions match, if all the attributes present in parseTree
-	//are also present in some relation from relNames, and updates the joinList if isApply is true
-	void validateJoin(struct AndList *parseTree, char *relNames[], int numToJoin, bool isApply);
+	//are also present in some relation from relNames
+	unordered_set<string> validateJoin(struct AndList *parseTree, char *relNames[], int numToJoin);
 
 	//populates the numDistincts with the number of unique entries the attribute has in its
 	//respective relation, and returns the number of tuples of the containing relation

@@ -1,10 +1,10 @@
 #include "Statistics.h"
 #include "cstring"
 #include "iostream"
+#include <sstream>
 
 Statistics::Statistics()
 {
-    joinList = new list<unordered_set<string>>();
     relationMap = new unordered_map<string, RelationInfo>();
 }
 
@@ -31,7 +31,6 @@ Statistics::Statistics(Statistics &copyMe)
 
 Statistics::~Statistics()
 {
-    delete joinList;
     delete relationMap;
 }
 
@@ -49,7 +48,6 @@ void Statistics::AddRel(char *relName, int numTuples)
         //populating join list with singleton
         unordered_set<string> tempRel;
         tempRel.insert(relName);
-        joinList->push_front(tempRel);
     }
     else
     { //update numTuples
@@ -174,15 +172,16 @@ void Statistics::Write(char *fromWhere)
     fclose(statisticsInfo);
 }
 
-bool Statistics::checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin)
+unordered_set<string> Statistics::checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin)
 {
     struct AndList *currentAnd = parseTree;
     struct OrList *currentOr;
     struct ComparisonOp *currentComparisonOp;
     struct Operand *leftOperand, *rightOperand;
+    unordered_set<string> matchedRelNames;
     string attName;
     if (parseTree == NULL)
-        return true;
+        return matchedRelNames; //return empty
     while (currentAnd->rightAnd != NULL)
     {
         currentOr = currentAnd->left;
@@ -191,26 +190,24 @@ bool Statistics::checkAttributes(struct AndList *parseTree, char *relNames[], in
             currentComparisonOp = currentOr->left;
             leftOperand = currentComparisonOp->left;
             rightOperand = currentComparisonOp->right;
-            if (leftOperand->code != NAME)
-                return false;
-            else
+            if (leftOperand->code == NAME)
             {
                 attName = leftOperand->value;
-                if (!findAttInRelation(attName, relNames, numToJoin))
-                    return false;
+
+                matchedRelNames.insert(findAttInRelation(attName, relNames, numToJoin));
+
                 if (rightOperand->code == NAME)
                 {
                     attName = rightOperand->value;
-                    if (!findAttInRelation(attName, relNames, numToJoin))
-                        return false;
+                    matchedRelNames.insert(findAttInRelation(attName, relNames, numToJoin));
                 }
             }
         }
     }
-    return true;
+    return matchedRelNames;
 }
 
-bool Statistics::findAttInRelation(string attName, char *relNames[], int numToJoin)
+string Statistics::findAttInRelation(string attName, char *relNames[], int numToJoin)
 {
     unordered_map<string, RelationInfo>::iterator relMapIter;
     unordered_map<string, int>::iterator attMapIter;
@@ -220,20 +217,21 @@ bool Statistics::findAttInRelation(string attName, char *relNames[], int numToJo
     {
         relMapIter = relationMap->find(relNames[i]);
         if (relMapIter == relationMap->end())
-            return false;
+            exit(1);
         else
         {
+
             attMap = relMapIter->second.attributeMap;
             attMapIter = attMap.find(attName);
             if (attMapIter == attMap.end())
-                return false;
+                exit(1);
             else
-            {
-                return true;
+            { //return matched rel name
+                return relMapIter->first;
             }
         }
     }
-    return false;
+    exit(1);
 }
 
 int Statistics::getNumTuples(string attName, char *relNames[], int numToJoin, int &numDistincts)
@@ -258,94 +256,120 @@ int Statistics::getNumTuples(string attName, char *relNames[], int numToJoin, in
     return relMapIter->second.numTuples;
 }
 
-void Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int numToJoin, bool fromApply)
+vector<string> Statistics::tokeniseKey(string input)
+{
+    vector<string> tokens;
+    stringstream check1(input);
+    string intermediate;
+    while (getline(check1, intermediate, '|'))
+    {
+        tokens.push_back(intermediate);
+    }
+    return tokens;
+}
+
+unordered_set<string> Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int numToJoin)
 { //assumes joinList is populated
 
-    unordered_set<string>::iterator subsetIterator, relNamesSetIterator;
-
-    list<unordered_set<string>>::iterator joinListItreator;
-    unordered_set<string> *relNamesSet, subset;
-    relNamesSet = new unordered_set<string>();
-
+    unordered_set<string>::iterator relNamesSetIter;
+    unordered_set<string> *relNamesSet = new unordered_set<string>();
+    unordered_map<string, RelationInfo>::iterator relMapIter;
+    unordered_set<string> matchedRelNamesSet;
     struct AndList *currentAnd = parseTree;
     struct OrList *currentOr = currentAnd->left;
 
-    if (!checkAttributes(parseTree, relNames, numToJoin))
-    {
-        cerr << "either attribute not present in relNames or relNames is not a subset of relationMap" << endl;
-        exit(1);
-    }
+    matchedRelNamesSet = checkAttributes(parseTree, relNames, numToJoin);
+
     //making a set version of relNames, to reduce internal lookups to O(1)
     for (int i = 0; i < numToJoin; i++)
         relNamesSet->insert(relNames[i]);
 
-    for (relNamesSetIterator = relNamesSet->begin(); relNamesSetIterator != relNamesSet->end();)
+    for (relNamesSetIter = relNamesSet->begin(); relNamesSetIter != relNamesSet->end(); ++relMapIter)
     {
 
         //get the set to which current relation from relNames belongs
-        bool relationExistsInJoinList = false;
+        bool relationExistsInRelationMap = false;
 
         //Note: the list keeps on getting shorter as subsets that completely match --> get removed
-        for (joinListItreator = joinList->begin(); joinListItreator != joinList->end();)
+        for (relMapIter = relationMap->begin(); relMapIter != relationMap->end();)
         {
-            //take a subset from the joinList
-            subset = *joinListItreator;
 
-            //if current relNames exists in this subset
-            if (relNamesSetIterator == relNamesSet->end())
-                return;
+            //if current relNames is a substring of current relMapIter's key
+            if (relNamesSetIter == relNamesSet->end())
+                return matchedRelNamesSet; //update to add iterator returns
 
-            subsetIterator = subset.find(*relNamesSetIterator);
+            //get the key string of relMapIter
+            string relMapKey = relMapIter->first;
 
-            if (subsetIterator != subset.end())
+            //if current relNames belongs to some relationMap key
+            if (relMapKey.find(*relNamesSetIter) != std::string::npos)
             {
-                relationExistsInJoinList = true;
-                //check all member of this subset against relNamesSet
-                for (subsetIterator = subset.begin(); subsetIterator != subset.end(); subsetIterator++)
+                relationExistsInRelationMap = true;
+
+                //get a delimited vector of strings, iterate and lookup
+                vector<string> tokens = tokeniseKey(relMapKey);
+                //lookup all substrings of this relationMap key in relNamesSet
+                for (int i = 0; i < tokens.size(); i++)
                 {
 
                     //if unable to locate even a single one
-                    if (relNamesSet->find(*subsetIterator) == relNamesSet->end())
+                    if (relNamesSet->find(tokens[i]) == relNamesSet->end())
                     {
                         cerr << "can't predict join, subset mismatch" << endl;
                         exit(1);
                     }
 
                     //remember to remove the found one's from the relNamesSet
-                    relNamesSetIterator = relNamesSet->erase(relNamesSetIterator);
+                    relNamesSetIter = relNamesSet->erase(relNamesSetIter);
                 }
-                if (fromApply)
-                    joinListItreator = joinList->erase(joinListItreator);
-                else
-                    ++joinListItreator;
             }
         }
-        if (!relationExistsInJoinList)
+        if (!relationExistsInRelationMap)
         {
-            cerr << "can't predict join relation " << *relNamesSetIterator << " doesn't even exist!" << endl;
+            cerr << "can't predict join relation " << *relNamesSetIter << " doesn't even exist!" << endl;
             exit(1);
         }
     }
+    return matchedRelNamesSet;
 }
 
 void Statistics::Apply(struct AndList *parseTree, char *relNames[], int numToJoin)
 {
-    unordered_set<string> subset;
-    validateJoin(parseTree, relNames, numToJoin, true);
+    unordered_set<string> matchedRelSet;
+    unordered_set<string>::iterator matchedRelSetIter;
+    unordered_map<string, int> attMap;
+    unordered_map<string, int>::iterator attMapIter;
+    matchedRelSet = validateJoin(parseTree, relNames, numToJoin);
+    char *newKey;
 
     //everything went fine, so we'll be able to predict the join output for relNames
     for (int i = 0; i < numToJoin; i++)
-        subset.insert(relNames[i]);
+        sprintf(newKey, "%s|%s", newKey, relNames[i]);
 
     //add the bigger set of relNames to the joinList
-    joinList->push_front(subset);
+    //create an attmap of new join
+    double estimate = Estimate(parseTree, relNames, numToJoin);
+
+    AddRel(newKey, estimate);
+
+    for (matchedRelSetIter = matchedRelSet.begin(); matchedRelSetIter != matchedRelSet.end(); matchedRelSetIter++)
+    {
+        //iterate over att map
+        attMap = relationMap->find(*matchedRelSetIter)->second.attributeMap;
+        for (attMapIter = attMap.begin(); attMapIter != attMap.end(); attMapIter++)
+        { //insert all atts to the newkey relation
+            relationMap->find(newKey)->second.attributeMap.insert(*attMapIter);
+        }
+        //delete the previous relations that got joined
+        relationMap->erase(*matchedRelSetIter);
+    }
 }
 
 double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numToJoin)
 {
     double estimatedTuples = 1.0;
 
-    validateJoin(parseTree, relNames, numToJoin, false);
+    validateJoin(parseTree, relNames, numToJoin);
     if (parseTree == NULL)
     {
         if (numToJoin == 1)
