@@ -8,7 +8,7 @@ tag = -n
 endif
 
 a4-1.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o Statistics.o y.tab.o lex.yy.o test.o HeapFile.o SortedFile.o
-	$(CC) -o a4-1.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o Statistics.o y.tab.o lex.yy.o test.o HeapFile.o SortedFile.o
+	$(CC) -o a4-1.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o Statistics.o y.tab.o lex.yy.o test.o -lpthread HeapFile.o SortedFile.o
 	
 test.o: test.cc
 	$(CC) -g -c test.cc
