@@ -121,20 +121,35 @@ void Statistics::Read(char *fromWhere)
         if (!strcmp(line, "Relation:"))
         {
             RelationInfo relationInfo;
+            std::unordered_map<std::string, int> attributeMap;
+
+            //read relation name
             fscanf(statisticsInfo, "%s", line);
             string relName(line);
             strcpy(rel, relName.c_str());
+
+            //read numTuples
             fscanf(statisticsInfo, "%s", line);
             relationInfo.numTuples = atoi(line);
-            fscanf(statisticsInfo, "%s", line);
+
+            //ignore Attributes:
             fscanf(statisticsInfo, "%s", line);
 
-            while (strcmp(line, "relation") != 0 && strcmp(line, "eof") != 0)
+            //read first attribute
+            fscanf(statisticsInfo, "%s", line);
+
+            //read all attributes of a relation
+            while (strcmp(line, "Relation:") != 0 && strcmp(line, "eof") != 0)
             {
-                int numDistinct;
                 string attName(line);
+
+                //read numDistinct of an attribute
+                int numDistinct;
                 fscanf(statisticsInfo, "%s", line);
                 numDistinct = atoi(line);
+
+                relationInfo.attributeMap = attributeMap;
+
                 relationInfo.attributeMap.insert(pair<string, int>(attName, numDistinct));
                 fscanf(statisticsInfo, "%s", line);
             }
