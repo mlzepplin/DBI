@@ -19,7 +19,6 @@ class Statistics
 {
   private:
 	std::unordered_map<string, RelationInfo> *relationMap;
-	double joinEstimate;
 
   public:
 	Statistics();

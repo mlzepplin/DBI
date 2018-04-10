@@ -1,7 +1,8 @@
 #include "Statistics.h"
 #include "cstring"
-#include "iostream"
 #include <sstream>
+#include <iostream>
+#include <fstream>
 
 Statistics::Statistics()
 {
@@ -88,7 +89,7 @@ void Statistics::CopyRel(char *oldName, char *newName)
     //just provides a copy of the relationInfo object
     RelationInfo relationInfo = relationMap->find(oldName)->second;
 
-    if (relationMap->find(newName) != relationMap->end())
+    if (relationMap->find(newName) == relationMap->end())
         relationMap->insert(std::make_pair(newName, relationInfo));
     else
     {
@@ -108,83 +109,93 @@ void Statistics::Read(char *fromWhere)
     {
         statisticsInfo = fopen(fromWhere, "w");
         fprintf(statisticsInfo, "eof");
-        fclose(statisticsInfo);
+
         statisticsInfo = fopen(fromWhere, "r");
     }
+    fclose(statisticsInfo);
 
-    char line[200], rel[200];
+    ifstream in(fromWhere);
 
-    fscanf(statisticsInfo, "%s", line);
+    char rel[200], att[200];
+    string foo;
 
-    while (strcmp(line, "eof") != 0)
+    //read Relation:
+    string line1;
+    std::getline(in, line1);
+
+    while (line1 != "eof")
     {
-        if (!strcmp(line, "Relation:"))
+        if (line1 == "Relation:")
         {
-            RelationInfo relationInfo;
-            std::unordered_map<std::string, int> attributeMap;
 
             //read relation name
-            fscanf(statisticsInfo, "%s", line);
-            string relName(line);
+            // fscanf(statisticsInfo, "%s", line);
+            string relName;
+
+            in >> relName;
             strcpy(rel, relName.c_str());
 
+            int numTuples;
+
             //read numTuples
-            fscanf(statisticsInfo, "%s", line);
-            relationInfo.numTuples = atoi(line);
+            in >> numTuples;
 
-            //ignore Attributes:
-            fscanf(statisticsInfo, "%s", line);
+            AddRel(rel, numTuples);
 
-            //read first attribute
-            fscanf(statisticsInfo, "%s", line);
+            string line;
+            in >> line;
 
             //read all attributes of a relation
-            while (strcmp(line, "Relation:") != 0 && strcmp(line, "eof") != 0)
+            while ((line != "Relation:") && (line != "eof"))
             {
-                string attName(line);
+                //read first attribute
+                string attName;
+                attName = line;
 
                 //read numDistinct of an attribute
                 int numDistinct;
-                fscanf(statisticsInfo, "%s", line);
-                numDistinct = atoi(line);
+                in >> numDistinct;
 
-                relationInfo.attributeMap = attributeMap;
+                strcpy(att, attName.c_str());
+                AddAtt(rel, att, numDistinct);
 
-                relationInfo.attributeMap.insert(pair<string, int>(attName, numDistinct));
-                fscanf(statisticsInfo, "%s", line);
+                in >> line;
             }
-            relationMap->insert(pair<string, RelationInfo>(relName, relationInfo));
         }
     }
-    fclose(statisticsInfo);
+
+    in.close();
 }
 
 void Statistics::Write(char *fromWhere)
 {
 
-    FILE *statisticsInfo;
-    statisticsInfo = fopen(fromWhere, "w");
+    ofstream out;
+    out.open(fromWhere);
 
     //Loop through the relation map
     for (unordered_map<std::string, RelationInfo>::iterator relItr = relationMap->begin(); relItr != relationMap->end(); relItr++)
     {
         char *relName = new char[relItr->first.length() + 1];
         strcpy(relName, relItr->first.c_str());
-        fprintf(statisticsInfo, "Relation:\n%s \n", relName);
-        fprintf(statisticsInfo, "%d tuples\n", relItr->second.numTuples);
-        fprintf(statisticsInfo, "Attributes:\n");
+
+        out << "Relation:\n";
+        out << relName << '\n';
+        out << relItr->second.numTuples << '\n';
 
         //Loop through attribute map
         for (unordered_map<std::string, int>::iterator attItr = relItr->second.attributeMap.begin(); attItr != relItr->second.attributeMap.end(); attItr++)
         {
             char *attName = new char[attItr->first.length() + 1];
             strcpy(attName, attItr->first.c_str());
-            fprintf(statisticsInfo, "%s\n", attName);
-            fprintf(statisticsInfo, "%d\n", attItr->second);
+
+            out << attName << '\n';
+            out << attItr->second << '\n';
         }
     }
-    fprintf(statisticsInfo, "eof");
-    fclose(statisticsInfo);
+
+    out << "eof";
+    out.close();
 }
 
 unordered_set<string> Statistics::checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin)
@@ -195,6 +206,7 @@ unordered_set<string> Statistics::checkAttributes(struct AndList *parseTree, cha
     struct Operand *leftOperand, *rightOperand;
     unordered_set<string> matchedRelNames;
     string attName;
+
     if (parseTree == NULL)
         return matchedRelNames; //return empty
 
@@ -231,45 +243,38 @@ string Statistics::findAttInRelation(string attName, char *relNames[], int numTo
     unordered_map<string, int>::iterator attMapIter;
     unordered_map<string, int> attMap;
 
-    for (int i = 0; i < numToJoin; i++)
+    for (relMapIter = relationMap->begin(); relMapIter != relationMap->end(); relMapIter++)
     {
-        relMapIter = relationMap->find(relNames[i]);
-        if (relMapIter == relationMap->end())
-            exit(1);
+        attMap = relMapIter->second.attributeMap;
+        attMapIter = attMap.find(attName);
+        if (attMapIter == attMap.end())
+            continue;
         else
-        {
-
-            attMap = relMapIter->second.attributeMap;
-            attMapIter = attMap.find(attName);
-            if (attMapIter == attMap.end())
-                continue;
-            else
-            { //return matched rel name
-                return relMapIter->first;
-            }
+        { //return matched rel name
+            return relMapIter->first;
         }
     }
+
     exit(1);
 }
 
 int Statistics::getNumTuples(string attName, char *relNames[], int numToJoin, int &numDistincts)
-{ //assumes that attribute does exist in atleast one relation
+{
+    //assumes that attribute does exist in atleast one relation
     unordered_map<string, RelationInfo>::iterator relMapIter;
     unordered_map<string, int>::iterator attMapIter;
     unordered_map<string, int> attMap;
 
-    for (int i = 0; i < numToJoin; i++)
+    for (relMapIter = relationMap->begin(); relMapIter != relationMap->end(); relMapIter++)
     {
-        relMapIter = relationMap->find(relNames[i]);
-
         attMap = relMapIter->second.attributeMap;
         attMapIter = attMap.find(attName);
-
         if (attMapIter == attMap.end())
             continue;
         else
             break;
     }
+
     numDistincts = attMapIter->second;
     return relMapIter->second.numTuples;
 }
@@ -287,7 +292,7 @@ vector<string> Statistics::tokeniseKey(string input)
 }
 
 unordered_set<string> Statistics::validateJoin(struct AndList *parseTree, char *relNames[], int numToJoin)
-{ //assumes joinList is populated
+{
 
     unordered_set<string>::iterator relNamesSetIter;
     unordered_set<string> *relNamesSet = new unordered_set<string>();
@@ -317,6 +322,7 @@ unordered_set<string> Statistics::validateJoin(struct AndList *parseTree, char *
                 return matchedRelNamesSet; //update to add iterator returns
 
             //get the key string of relMapIter
+
             string relMapKey = relMapIter->first;
 
             //if current relNames belongs to some relationMap key
@@ -358,17 +364,26 @@ void Statistics::Apply(struct AndList *parseTree, char *relNames[], int numToJoi
     unordered_map<string, int> attMap;
     unordered_map<string, int>::iterator attMapIter;
     matchedRelSet = validateJoin(parseTree, relNames, numToJoin);
-    char *newKey = new char[200];
+    //char *newKey = new char[200];
+    string newKey = "";
 
     //everything went fine, so we'll be able to predict the join output for relNames
     for (int i = 0; i < numToJoin; i++)
-        sprintf(newKey, "%s|%s", newKey, relNames[i]);
+    {
+        if (i > 0)
+        {
+            newKey += "|";
+        }
+        newKey += relNames[i];
+    }
 
     //add the bigger set of relNames to the joinList
     //create an attmap of new join
     double estimate = Estimate(parseTree, relNames, numToJoin);
 
-    AddRel(newKey, estimate);
+    char *newkey = new char[200];
+    strcpy(newkey, newKey.c_str());
+    AddRel(newkey, estimate);
 
     for (matchedRelSetIter = matchedRelSet.begin(); matchedRelSetIter != matchedRelSet.end(); matchedRelSetIter++)
     {
@@ -387,22 +402,35 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
 {
     double estimatedTuples = 1.0;
 
-    validateJoin(parseTree, relNames, numToJoin);
+    unordered_set<string>::iterator matchedRelSetIter;
+    unordered_set<string> matchedRelSet;
+    matchedRelSet = validateJoin(parseTree, relNames, numToJoin);
     if (parseTree == NULL)
     {
         if (numToJoin == 1)
         {
             //selection
-            return relationMap->find(relNames[0])->second.numTuples;
+            for (matchedRelSetIter = matchedRelSet.begin(); matchedRelSetIter != matchedRelSet.end(); matchedRelSetIter++)
+            {
+                if ((*matchedRelSetIter).find(relNames[0]) != std::string::npos)
+                    return relationMap->find(*matchedRelSetIter)->second.numTuples;
+            }
         }
         else
         {
-
-            //double result = 1.0;
             //cross product bw all relNames
             for (int i = 0; i < numToJoin; i++)
             {
-                estimatedTuples *= relationMap->find(relNames[i])->second.numTuples;
+                for (matchedRelSetIter = matchedRelSet.begin(); matchedRelSetIter != matchedRelSet.end();)
+                {
+                    if ((*matchedRelSetIter).find(relNames[0]) != std::string::npos)
+                    {
+                        estimatedTuples *= relationMap->find(*matchedRelSetIter)->second.numTuples;
+                        matchedRelSetIter = matchedRelSet.erase(matchedRelSetIter);
+                    }
+                    else
+                        matchedRelSetIter++;
+                }
             }
             return estimatedTuples;
         }
@@ -417,7 +445,16 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
     //compute max possible join tuples
     for (int i = 0; i < numToJoin; i++)
     {
-        maxJoinTuples *= relationMap->find(relNames[i])->second.numTuples;
+        for (matchedRelSetIter = matchedRelSet.begin(); matchedRelSetIter != matchedRelSet.end();)
+        {
+            if ((*matchedRelSetIter).find(relNames[i]) != std::string::npos)
+            {
+                maxJoinTuples *= relationMap->find(*matchedRelSetIter)->second.numTuples;
+                matchedRelSetIter = matchedRelSet.erase(matchedRelSetIter);
+            }
+            else
+                matchedRelSetIter++;
+        }
     }
 
     //reducing the maxTuples by factoring with all the attribute conditions
@@ -463,11 +500,12 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
             { //less than or greater than condition
                 maxOrTuplesEstimate = std::max(maxOrTuplesEstimate, (1.0 / 3) * leftTuples);
             }
-        } while (currentOr->rightOr != NULL);
+            currentOr = currentOr->rightOr;
+        } while (currentOr != NULL);
 
         minAndTuplesEstimate = std::min(minAndTuplesEstimate, maxOrTuplesEstimate);
-
-    } while (currentAnd->rightAnd != NULL);
+        currentAnd = currentAnd->rightAnd;
+    } while (currentAnd != NULL);
 
     estimatedTuples = minAndTuplesEstimate;
     return estimatedTuples;
