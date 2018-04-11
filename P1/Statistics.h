@@ -35,8 +35,8 @@ class Statistics
 	void Apply(struct AndList *parseTree, char *relNames[], int numToJoin);
 	double Estimate(struct AndList *parseTree, char **relNames, int numToJoin);
 
-	unordered_set<string> checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin);
-	string findAttInRelation(string attName, char *relNames[], int numToJoin);
+	unordered_set<string> getRelNamesOfAttributes(struct AndList *parseTree, char *relNames[], int numToJoin);
+	string getRelationOfAtt(string attName, char *relNames[], int numToJoin);
 	vector<string> tokeniseKey(string input);
 
 	//checks if the join set-subset conditions match, if all the attributes present in parseTree

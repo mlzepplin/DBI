@@ -117,32 +117,25 @@ void Statistics::Read(char *fromWhere)
     ifstream in(fromWhere);
 
     char rel[200], att[200];
-    string foo;
 
     //read Relation:
-    string line1;
-    std::getline(in, line1);
+    string line;
+    std::getline(in, line);
 
-    while (line1 != "eof")
+    while (line != "eof")
     {
-        if (line1 == "Relation:")
+        if (line == "Relation:")
         {
-
             //read relation name
-            // fscanf(statisticsInfo, "%s", line);
             string relName;
-
             in >> relName;
             strcpy(rel, relName.c_str());
 
             int numTuples;
-
-            //read numTuples
             in >> numTuples;
 
             AddRel(rel, numTuples);
 
-            string line;
             in >> line;
 
             //read all attributes of a relation
@@ -198,7 +191,7 @@ void Statistics::Write(char *fromWhere)
     out.close();
 }
 
-unordered_set<string> Statistics::checkAttributes(struct AndList *parseTree, char *relNames[], int numToJoin)
+unordered_set<string> Statistics::getRelNamesOfAttributes(struct AndList *parseTree, char *relNames[], int numToJoin)
 {
     struct AndList *currentAnd = parseTree;
     struct OrList *currentOr;
@@ -222,12 +215,12 @@ unordered_set<string> Statistics::checkAttributes(struct AndList *parseTree, cha
             {
                 attName = leftOperand->value;
 
-                matchedRelNames.insert(findAttInRelation(attName, relNames, numToJoin));
+                matchedRelNames.insert(getRelationOfAtt(attName, relNames, numToJoin));
 
                 if (rightOperand->code == NAME)
                 {
                     attName = rightOperand->value;
-                    matchedRelNames.insert(findAttInRelation(attName, relNames, numToJoin));
+                    matchedRelNames.insert(getRelationOfAtt(attName, relNames, numToJoin));
                 }
             }
             currentOr = currentOr->rightOr;
@@ -237,7 +230,7 @@ unordered_set<string> Statistics::checkAttributes(struct AndList *parseTree, cha
     return matchedRelNames;
 }
 
-string Statistics::findAttInRelation(string attName, char *relNames[], int numToJoin)
+string Statistics::getRelationOfAtt(string attName, char *relNames[], int numToJoin)
 {
     unordered_map<string, RelationInfo>::iterator relMapIter;
     unordered_map<string, int>::iterator attMapIter;
@@ -254,7 +247,7 @@ string Statistics::findAttInRelation(string attName, char *relNames[], int numTo
             return relMapIter->first;
         }
     }
-
+    cerr << "attribute: " << attName << "- cannot be found in relationMap" << endl;
     exit(1);
 }
 
@@ -295,19 +288,21 @@ unordered_set<string> Statistics::validateJoin(struct AndList *parseTree, char *
 {
 
     unordered_set<string>::iterator relNamesSetIter;
-    unordered_set<string> *relNamesSet = new unordered_set<string>();
+    unordered_set<string> relNamesSet;
     unordered_map<string, RelationInfo>::iterator relMapIter;
     unordered_set<string> matchedRelNamesSet;
     struct AndList *currentAnd = parseTree;
     struct OrList *currentOr = currentAnd->left;
 
-    matchedRelNamesSet = checkAttributes(parseTree, relNames, numToJoin);
+    matchedRelNamesSet = getRelNamesOfAttributes(parseTree, relNames, numToJoin);
 
     //making a set version of relNames, to reduce internal lookups to O(1)
     for (int i = 0; i < numToJoin; i++)
-        relNamesSet->insert(relNames[i]);
+        relNamesSet.insert(relNames[i]);
 
-    for (relNamesSetIter = relNamesSet->begin(); relNamesSetIter != relNamesSet->end();)
+    relNamesSetIter = relNamesSet.begin();
+
+    while (relNamesSetIter != relNamesSet.end())
     {
 
         //get the set to which current relation from relNames belongs
@@ -318,7 +313,7 @@ unordered_set<string> Statistics::validateJoin(struct AndList *parseTree, char *
         {
 
             //if current relNames is a substring of current relMapIter's key
-            if (relNamesSetIter == relNamesSet->end())
+            if (relNamesSetIter == relNamesSet.end())
                 return matchedRelNamesSet; //update to add iterator returns
 
             //get the key string of relMapIter
@@ -330,6 +325,8 @@ unordered_set<string> Statistics::validateJoin(struct AndList *parseTree, char *
             {
                 relationExistsInRelationMap = true;
 
+                unordered_set<string>::iterator tempIter = relNamesSetIter;
+
                 //get a delimited vector of strings, iterate and lookup
                 vector<string> tokens = tokeniseKey(relMapKey);
                 //lookup all substrings of this relationMap key in relNamesSet
@@ -337,14 +334,15 @@ unordered_set<string> Statistics::validateJoin(struct AndList *parseTree, char *
                 {
 
                     //if unable to locate even a single one
-                    if (relNamesSet->find(tokens[i]) == relNamesSet->end())
+                    //Verify all of the tokens are present in the relNames
+                    if (relNamesSet.find(tokens[i]) == relNamesSet.end())
                     {
                         cerr << "can't predict join, subset mismatch" << endl;
                         exit(1);
                     }
 
                     //remember to remove the found one's from the relNamesSet
-                    relNamesSetIter = relNamesSet->erase(relNamesSetIter);
+                    relNamesSet.erase(tokens[i]);
                 }
             }
         }
@@ -353,6 +351,7 @@ unordered_set<string> Statistics::validateJoin(struct AndList *parseTree, char *
             cerr << "can't predict join relation " << *relNamesSetIter << " doesn't even exist!" << endl;
             exit(1);
         }
+        relNamesSetIter = relNamesSet.begin();
     }
     return matchedRelNamesSet;
 }
