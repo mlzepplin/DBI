@@ -18,4 +18,5 @@ yyfunc.tab.h
 *.bigq
 *.out
 *settings.json
+Statistics.txt
 
