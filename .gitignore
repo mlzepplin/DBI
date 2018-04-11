@@ -1,15 +1,18 @@
 .vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+.vscode/extensions.json
+
 lex.yy.c
 lex.yyfunc.c
+
 y.tab.c
 y.tab.c-e
 y.tab.h
 yyfunc.tab.c
 yyfunc.tab.h
+
 *.tmp
 *.tbl
 *.bin
@@ -17,6 +20,6 @@ yyfunc.tab.h
 *.meta
 *.bigq
 *.out
-*settings.json
-Statistics.txt
 
+P1/Statistics.txt
+*.tar
