@@ -15,6 +15,7 @@ struct RelationInfo
 } typedef RelationInfo;
 
 typedef unordered_map<string, RelationInfo>::iterator RelMapIter;
+typedef unordered_map<string, int>::iterator AttMapIter;
 class Statistics
 {
   private:
