@@ -8,7 +8,7 @@ tag = -n
 endif
 
 main:   y.tab.o lex.yy.o main.o
-	$(CC) -o main y.tab.o lex.yy.o main.o -lfl
+	$(CC) -o main y.tab.o lex.yy.o main.o 
 	
 main.o : main.cc
 	$(CC) -g -c main.cc
@@ -78,7 +78,7 @@ Statistics.o: Statistics.cc
 
 y.tab.o: Parser.y
 	yacc -d Parser.y
-	sed $(tag) y.tab.c -e "s/  __attribute__ ((__unused__))$$/# ifndef __cplusplus\n  __attribute__ ((__unused__));\n# endif/" 
+	sed $(tag) -e "s/  __attribute__ ((__unused__))$$/# ifndef __cplusplus\n  __attribute__ ((__unused__));\n# endif/" y.tab.c
 	g++ -c y.tab.c
 
 yyfunc.tab.o: ParserFunc.y
