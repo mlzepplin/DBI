@@ -1,5 +1,5 @@
 
-CC = g++ -O0 -Wno-deprecated
+CC = g++ -g -O0 -Wno-deprecated
 
 tag = -i
 
@@ -7,23 +7,29 @@ ifdef linux
 tag = -n
 endif
 
-test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o RelOp.o Function.o y.tab.o yyfunc.tab.o lex.yy.o lex.yyfunc.o test.o HeapFile.o SortedFile.o
-	$(CC) -o test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o RelOp.o Function.o y.tab.o yyfunc.tab.o lex.yy.o lex.yyfunc.o test.o -lpthread HeapFile.o SortedFile.o
-
+a4-1.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o Statistics.o y.tab.o lex.yy.o test.o HeapFile.o SortedFile.o
+	$(CC) -o a4-1.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o Statistics.o y.tab.o lex.yy.o test.o -lpthread HeapFile.o SortedFile.o
+	
 test.o: test.cc
 	$(CC) -g -c test.cc
+
+# a3test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o RelOp.o Function.o y.tab.o yyfunc.tab.o lex.yy.o lex.yyfunc.o test.o HeapFile.o SortedFile.o
+# 	$(CC) -o a3test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o RelOp.o Function.o y.tab.o yyfunc.tab.o lex.yy.o lex.yyfunc.o test.o -lpthread HeapFile.o SortedFile.o
+
+# a3test.o: a3test.cc
+# 	$(CC) -g -c a3test.cc
 
 # a22.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o HeapFile.o SortedFile.o
 # 	$(CC) -o a22.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o -lpthread HeapFile.o SortedFile.o
 
-# a22.o: test.cc
-# 	$(CC) -g -c test.cc
+# a22.o: a2-2test.cc
+# 	$(CC) -g -c a2-2test.cc
 
 # a2test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o HeapFile.o SortedFile.o
-# 	$(CC) -o test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o -lpthread HeapFile.o SortedFile.o
+# 	$(CC) -o a2test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o -lpthread HeapFile.o SortedFile.o
 
 # a2-test.o: a2-test.cc
-# 	$(CC) -g -c test.cc
+# 	$(CC) -g -c a2-test.cc
 
 # a1-test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o y.tab.o lex.yy.o a1-test.o HeapFile.o SortedFile.o BigQ.o
 # 	$(CC) -o a1-test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o y.tab.o lex.yy.o a1-test.o HeapFile.o SortedFile.o BigQ.o
@@ -60,6 +66,9 @@ Record.o: Record.cc
 
 Schema.o: Schema.cc
 	$(CC) -g -c Schema.cc
+
+Statistics.o: Statistics.cc
+	$(CC) -g -c Statistics.cc
 
 y.tab.o: Parser.y
 	yacc -d Parser.y

@@ -8,7 +8,7 @@
 	#include <iostream>
 
 	extern "C" int yylex();
-	extern "C" int yyparse();
+	extern int yyparse();
 	extern "C" void yyerror(char *s);
   
 	// this is the final parse tree that is returned	
