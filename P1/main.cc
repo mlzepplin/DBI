@@ -20,9 +20,29 @@ int main()
 	extern int distinctFunc;
 
 	yyparse();
-	while (finalFunction->right != NULL)
+	cout << "tables" << endl;
+	while (tables != NULL)
 	{
-		// cout << finalFunction->code;
-		// cout << finalFunction->leftOperand;
+		cout << tables->tableName;
+		cout << tables->aliasAs;
+		tables = tables->next;
+		cout << endl;
 	}
+	cout << "groupingatts" << endl;
+	while (groupingAtts != NULL)
+	{
+		cout << groupingAtts->name;
+		groupingAtts = groupingAtts->next;
+		cout << endl;
+	}
+	cout << "atts to select" << endl;
+	while (attsToSelect != NULL)
+	{
+		cout << attsToSelect->name;
+		attsToSelect = attsToSelect->next;
+		cout << endl;
+	}
+
+	cout << "distfunc" << distinctFunc << endl;
+	cout << "distatts" << distinctAtts << endl;
 }

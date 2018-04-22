@@ -1,6 +1,6 @@
 #ifndef QUERY_PLANNER_H
 #define QUERY_PLANNER_H
-
+#define MAX_NUM_RELS 20
 #include "Schema.h"
 #include "Statistics.h"
 #include "Function.h"
@@ -13,10 +13,11 @@
 //OR ALL REFER TO A COMMON OBJECT THAT GETS UPDATED FOR EACH AS WE GO ALONG?
 class OperationNode
 {
-private:
+protected:
   Schema *outSchema;
   string operationName;
-  vector<string> relationNames;
+  char *relationNames[MAX_NUM_RELS];
+  int numRelations;
   int estimatedTuples;
   int optimalTuples;
   Statistics *statistics;
@@ -28,35 +29,46 @@ public:
   OperationNode(string operationName, Schema *outSchema, string, Statistics *statistics);
   OperationNode(string operationName, Schema *outSchema, vector<string>, Statistics *statistics);
 };
-class UnaryOperationNode : protected OperationNode
+
+class SingletonLeafNode : public OperationNode
 {
-};
-class BinaryOperationNode : protected OperationNode
-{
-};
-class SingletonLeafNode : protected OperationNode
-{
+  friend class JoinOperationNode;
+
+private:
+  char *aliasName;
+
 public:
-  SingletonLeafNode(string operationName, Schema *outSchema, Statistics *statistics) : OperationNode(operationName, outSchema, statistics)
+  SingletonLeafNode(char *relationName, char *aliasName, Schema *outSchema, Statistics *statistics) : OperationNode(operationName, outSchema, statistics)
   {
+    this->relationNames[0] = relationName;
+    this->aliasName = aliasName;
+    this->outSchema = outSchema;
+    this->statistics = statistics;
+    numRelations = 1;
   }
 };
-class JoinOperationNode : protected BinaryOperationNode
+class JoinOperationNode : public OperationNode
+{
+
+public:
+  OperationNode *leftOperationNode;
+  OperationNode *rightOperationNode;
+  JoinOperationNode(OperationNode *left, OperationNode *right);
+  void combineRelNames();
+};
+class ProjectOperationNode : public OperationNode
 {
 };
-class ProjectOperationNode : protected UnaryOperationNode
+class SelectOperationNode : public OperationNode
 {
 };
-class SelectOperationNode : protected UnaryOperationNode
+class DupRemovalOperationNode : public OperationNode
 {
 };
-class DupRemovalOperationNode : protected UnaryOperationNode
+class SumOperationNode : public OperationNode
 {
 };
-class SumOperationNode : protected UnaryOperationNode
-{
-};
-class GroupByOperationNode : protected UnaryOperationNode
+class GroupByOperationNode : public OperationNode
 {
 };
 
@@ -65,9 +77,12 @@ class QueryPlanner
 private:
   OperationNode *root;
   vector<OperationNode *> nodesVector;
-  string outFileName;
+  unordered_map<char *, char *> aliasMappings;
+  char *outFilePath;
   FILE *outFile;
+  char *inFilePath;
   Statistics *statistics;
+
   FuncOperator *finalFunction;
   TableList *tables;
   AndList *boolean;
@@ -81,6 +96,8 @@ public:
   {
     this->statistics = statistics;
   }
+  void initLeaves();
+  void planJoins();
   void planOperationOrder();
   void printOperationOrder();
 };
