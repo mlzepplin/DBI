@@ -1,5 +1,5 @@
 #include "QueryPlanner.h"
-#include "float.h"
+#include <float.h>
 
 extern char *catalogPath;
 
@@ -22,10 +22,12 @@ void QueryPlanner::planOperationOrder()
 {
     initLeaves();
     planJoins();
+    performSum();
 }
 void QueryPlanner::printOperationOrder()
 {
 }
+
 void QueryPlanner::planJoins()
 {
     //steps to do
@@ -100,7 +102,6 @@ SingletonLeafNode::SingletonLeafNode(string operationName, Statistics *statistic
     this->statistics = statistics;
 }
 
-//JoinOperationNode
 void JoinOperationNode::populateOutSchema()
 {
     //go through all the table names, get their alias from aliasmappings
@@ -133,13 +134,14 @@ void JoinOperationNode::populateOutSchema()
     Schema outSchema(catalogPath, numTotalAtts, joinAttList);
     this->outSchema = &outSchema;
 }
-JoinOperationNode::JoinOperationNode(string operationName, Statistics *statistics, int outPipeID, OperationNode *node1, OperationNode *node2)
-    : OperationNode(operationName, statistics, outPipeID)
+
+JoinOperationNode::JoinOperationNode(string operationName, Statistics *Statistics, int outPipeID, OperationNode *node1, OperationNode *node2) : OperationNode(operationName, statistics, outPipeID)
 {
     leftOperationNode = node1;
     rightOperationNode = node2;
     combineRelNames();
 }
+
 void JoinOperationNode::combineRelNames()
 {
     int numLeft = leftOperationNode->numRelations;
@@ -155,4 +157,46 @@ void JoinOperationNode::combineRelNames()
     {
         relationNames[i] = rightOperationNode->relationNames[i];
     }
+}
+
+void JoinOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+{
+    os << "Join CNF:" << endl;
+    cnf.Print();
+    os << "Estimate = " << estimatedTuples << endl;
+}
+
+void QueryPlanner::performSum()
+{
+    //Perform groupby if grouping attributes are provided
+    if (groupingAtts)
+    {
+        if (!finalFunction)
+        {
+            cout << "Group by can't be performed without aggregate function";
+            exit(-1);
+        }
+        if (distinctFunc)
+        {
+            root = new DupRemovalOperationNode(root);
+        }
+
+        root = new GroupByOperationNode(groupingAtts, finalFunction, root);
+    }
+    else if (finalFunction)
+    {
+        root = new SumOperationNode(finalFunction, root);
+    }
+}
+
+void QueryPlanner::performProject()
+{
+    if (attsToSelect && !finalFunction && !groupingAtts)
+        root = new ProjectOperationNode(attsToSelect, root);
+}
+
+GroupByOperationNode::GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node) : OperationNode("GroupBy", NULL, resultSchema(groupingAtts, parseTree, node), 0)
+{
+    groupOrder.growFromParseTree(groupingAtts, node->outSchema);
+    func.GrowFromParseTree(parseTree, *node->outSchema);
 }
