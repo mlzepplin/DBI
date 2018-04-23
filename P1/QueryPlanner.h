@@ -32,34 +32,28 @@ protected:
   char *relationNames[MAX_NUM_RELS]; //populated differently for different things
   int numRelations;
   int outPipeID;
+  Statistics *statistics;
   // int estimatedTuples;
   // int optimalTuples;
-  Statistics *statistics;
+  // Statistics *statistics;
 
 public:
   //constructors
-  OperationNode(string operationName, Statistics *Statistics, int outPipeID);
-  OperationNode(string operationName, Statistics *Statistics, Schema *outSchema, int outPipeID);
+  OperationNode(string operationName, Statistics *statistics, int outPipeID);
+  OperationNode(string operationName, Statistics *statistics, Schema *outSchema, int outPipeID);
   // OperationNode(string operationName, Schema *outSchema, string, Statistics *statistics);
   // OperationNode(string operationName, Schema *outSchema, vector<string>, Statistics *statistics);
 };
 
 class SingletonLeafNode : public OperationNode
 {
-
 private:
   char *aliasName;
 
 public:
-  SingletonLeafNode(string operationName, Statistics *Statistics, Schema *outSchema, int outPipeId, char *relationName, char *aliasName) : OperationNode(operationName, statistics, outSchema, outPipeId)
-  {
-    this->relationNames[0] = relationName;
-    this->aliasName = aliasName;
-    this->outSchema = outSchema;
-    numRelations = 1;
-    this->statistics = statistics;
-  }
+  SingletonLeafNode(string operationName, Statistics *statistics, Schema *outSchema, int outPipeId, char *relationName, char *aliasName);
 };
+
 class JoinOperationNode : public OperationNode
 {
 
@@ -68,7 +62,7 @@ private:
   OperationNode *rightOperationNode;
 
 public:
-  JoinOperationNode(string operationName, Statistics *Statistics, int outPipeID, OperationNode *node1, OperationNode *node2);
+  JoinOperationNode(string operationName, Statistics *statistics, int outPipeID, OperationNode *node1, OperationNode *node2);
   void combineRelNames();
   void populateOutSchema();
 };
@@ -94,7 +88,6 @@ class QueryPlanner
 private:
   OperationNode *root;
   vector<OperationNode *> nodesVector;
-  unordered_map<char *, char *> aliasMappings;
   char *outFilePath;
   FILE *outFile;
   char *inFilePath;

@@ -84,7 +84,25 @@ void Statistics::AddAtt(char *relName, char *attName, int numDistincts)
         }
     }
 }
+vector<string> Statistics::getAllAttsNames()
+{
+    vector<string> allAtts;
+    RelMapIter relIter = relationMap->begin();
+    AttMapIter attIter;
+    while (relIter != relationMap->end())
+    {
+        unordered_map<string, int> attMap = relIter->second.attributeMap;
+        attIter = attMap.begin();
+        while (attIter != attMap.end())
+        {
+            allAtts.push_back(attIter->first);
+            attIter++;
+        }
 
+        relIter++;
+    }
+    return allAtts;
+}
 void Statistics::CopyRel(char *oldName, char *newName)
 {
     AttMapIter attMapIter;
