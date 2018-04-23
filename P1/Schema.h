@@ -55,6 +55,9 @@ class Schema
 	// this composes a schema instance in-memory
 	Schema(char *fName, int num_atts, Attribute *atts);
 
+	// compute schema based on aliasName
+	Schema(const char *fName, const char *relName, const char *aliasName);
+
 	// this constructs a sort order structure that can be used to
 	// place a lexicographic ordering on the records using this type of schema
 	int GetSortOrder(OrderMaker &order);

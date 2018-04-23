@@ -1,4 +1,5 @@
 #include "QueryPlanner.h"
+#include "float.h"
 
 extern char *catalogPath;
 
@@ -20,7 +21,7 @@ void QueryPlanner::planJoins()
     //and then what we print it out using the orint helper methid to the outFile
     vector<OperationNode *> optimalNodesVector;
     vector<OperationNode *>::iterator nodesVecIter;
-    int optimalNumTuples = 0;
+    double optimalEstimate = DBL_MAX;
     //get all the permutations of the list and break at the optimal one
     //RMEEMBER - DON'T ALTER THE ACTUAL LEAF LIST!!
 
@@ -35,34 +36,76 @@ Schema *outSchema;
 */
     while (std::next_permutation(nodesVector.begin(), nodesVector.end()))
     {
-        vector<OperationNode *> tempNodesVector = nodesVector;
+        vector<OperationNode *> currentNodesVector = nodesVector;
         Statistics stats = *statistics;
-
-        while (tempNodesVector.size() > 1)
+        double currentEstimate = 0.0;
+        while (currentNodesVector.size() > 1)
         {
+
             //pop off the last two
-            OperationNode *node1 = tempNodesVector.back();
-            tempNodesVector.pop_back();
-            OperationNode *node2 = tempNodesVector.back();
-            tempNodesVector.pop_back();
+            OperationNode *node1 = currentNodesVector.back();
+            currentNodesVector.pop_back();
+            OperationNode *node2 = currentNodesVector.back();
+            currentNodesVector.pop_back();
 
-            //constructing new relNames
-            OperationNode *joinNode = new JoinOperationNode(node1, node2);
+            //constructing the outSchema for the join
+
+            //constructing new JoinNode which inherently updates relNames,numRelations as well
+            int outPipeId = std::max(node1->outPipeID, node2->outPipeID) + 1;
+            OperationNode *joinNode = new JoinOperationNode("join", statistics, outPipeId, node1, node2);
+
             //join em and
-            stats.Estimate();
-            stats.Apply();
-        }
+            currentEstimate += stats.Estimate(boolean, joinNode->relationNames, joinNode->numRelations);
+            stats.Apply(boolean, joinNode->relationNames, joinNode->numRelations);
 
+            currentNodesVector.push_back(joinNode);
+        }
+        if (currentEstimate < optimalEstimate)
+        {
+            optimalEstimate = currentEstimate;
+            optimalNodesVector = currentNodesVector;
+        }
         //for this permutation, calc the total cost
         //estimatedTuples += statistics->Estimate();
     }
+    //note, at the end when all the joins are done, we'll have only one
+    //node (JoinOperationNode) in the optimalNodesVector, and its outschema
+    //will be all the prepended alisaed attributes
+    ((JoinOperationNode *)optimalNodesVector[0])->populateOutSchema(stats);
+}
+void JoinOperationNode::populateOutSchema(Statistics *stats)
+{
+    //go through all the table names, get their alias from aliasmappings
+    //find their attributes from the relation map and build outschema
+
+    while (tables != NULL)
+    {
+        stats->RelationMap(tables->tableName;
+        cout << tables->aliasAs;
+        tables = tables->next;
+        cout << endl;
+    }
+}
+JoinOperationNode::JoinOperationNode(string operationName, Statistics *Statistics, int outPipeID, OperationNode *node1, OperationNode *node2) : OperationNode(operationName, statistics, outPipeID)
+{
+    leftOperationNode = node1;
+    rightOperationNode = node2;
+    combineRelNames();
 }
 void JoinOperationNode::combineRelNames()
 {
-    vector<char *> combination;
-    for (int i = 0; i < leftOperationNode->numRelations; i++)
+    int numLeft = leftOperationNode->numRelations;
+    int numRight = rightOperationNode->numRelations;
+    //update numRelations of new joinnode
+    numRelations = numLeft + numRight;
+    //update relNames[] for new join node
+    for (int i = 0; i < numLeft; i++)
     {
-        leftOperations
+        relationNames[i] = leftOperationNode->relationNames[i];
+    }
+    for (int i = numLeft; i < numRelations; i++)
+    {
+        relationNames[i] = rightOperationNode->relationNames[i];
     }
 }
 void QueryPlanner::initLeaves()
@@ -73,7 +116,9 @@ void QueryPlanner::initLeaves()
         statistics->CopyRel(tables->tableName, tables->aliasAs);
         aliasMappings.insert(std::make_pair(tables->tableName, tables->aliasAs));
         Schema *outSchema = new Schema(catalogPath, tables->tableName);
-        OperationNode *currentNode = new SingletonLeafNode(tables->tableName, tables->aliasAs, outSchema, statistics);
+        int outPipeId = 1;
+        OperationNode *currentNode = new SingletonLeafNode("leaf", outSchema, outPipeId, tables->tableName, tables->aliasAs);
         nodesVector.push_back(currentNode);
+        tables = tables->next;
     }
 }

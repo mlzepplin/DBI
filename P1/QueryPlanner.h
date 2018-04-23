@@ -9,52 +9,68 @@
 #include <iostream>
 #include <string>
 #include <vector>
+
+extern FuncOperator *finalFunction;
+extern TableList *tables;
+extern AndList *boolean;
+extern NameList *groupingAtts;
+extern NameList *attsToSelect;
+extern int distinctAtts;
+extern int distinctFunc;
+
 //QUESTION? - DOES EVERY NODE NEED TO MAINTAIN ITS OWN STATS OBJECT
 //OR ALL REFER TO A COMMON OBJECT THAT GETS UPDATED FOR EACH AS WE GO ALONG?
+
 class OperationNode
 {
+  friend class QueryPlanner;
+  friend class JoinOperationNode;
+
 protected:
   Schema *outSchema;
   string operationName;
-  char *relationNames[MAX_NUM_RELS];
+  char *relationNames[MAX_NUM_RELS]; //populated differently for different things
   int numRelations;
-  int estimatedTuples;
-  int optimalTuples;
-  Statistics *statistics;
   int outPipeID;
+  // int estimatedTuples;
+  // int optimalTuples;
+  Statistics *statistics;
 
 public:
   //constructors
-  OperationNode(string operationName, Schema *outSchema, Statistics *statistics);
-  OperationNode(string operationName, Schema *outSchema, string, Statistics *statistics);
-  OperationNode(string operationName, Schema *outSchema, vector<string>, Statistics *statistics);
+  OperationNode(string operationName, Statistics *Statistics, int outPipeID);
+  OperationNode(string operationName, Statistics *Statistics, Schema *outSchema, int outPipeID);
+  // OperationNode(string operationName, Schema *outSchema, string, Statistics *statistics);
+  // OperationNode(string operationName, Schema *outSchema, vector<string>, Statistics *statistics);
 };
 
 class SingletonLeafNode : public OperationNode
 {
-  friend class JoinOperationNode;
 
 private:
   char *aliasName;
 
 public:
-  SingletonLeafNode(char *relationName, char *aliasName, Schema *outSchema, Statistics *statistics) : OperationNode(operationName, outSchema, statistics)
+  SingletonLeafNode(string operationName, Statistics *Statistics, Schema *outSchema, int outPipeId, char *relationName, char *aliasName) : OperationNode(operationName, statistics, outSchema, outPipeId)
   {
     this->relationNames[0] = relationName;
     this->aliasName = aliasName;
     this->outSchema = outSchema;
-    this->statistics = statistics;
     numRelations = 1;
+    this->statistics = statistics;
   }
 };
 class JoinOperationNode : public OperationNode
 {
 
-public:
+private:
   OperationNode *leftOperationNode;
   OperationNode *rightOperationNode;
-  JoinOperationNode(OperationNode *left, OperationNode *right);
+
+public:
+  JoinOperationNode(string operationName, Statistics *Statistics, int outPipeID, OperationNode *node1, OperationNode *node2);
   void combineRelNames();
+  void populateOutSchema();
 };
 class ProjectOperationNode : public OperationNode
 {
@@ -74,6 +90,7 @@ class GroupByOperationNode : public OperationNode
 
 class QueryPlanner
 {
+
 private:
   OperationNode *root;
   vector<OperationNode *> nodesVector;
@@ -82,14 +99,6 @@ private:
   FILE *outFile;
   char *inFilePath;
   Statistics *statistics;
-
-  FuncOperator *finalFunction;
-  TableList *tables;
-  AndList *boolean;
-  NameList *groupingAtts;
-  NameList *attsToSelect;
-  int distinctAtts;
-  int distinctFunc;
 
 public:
   QueryPlanner(Statistics *statistics)
