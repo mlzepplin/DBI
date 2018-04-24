@@ -84,6 +84,15 @@ void Statistics::AddAtt(char *relName, char *attName, int numDistincts)
         }
     }
 }
+int Statistics::getNumTuples(string relationName)
+{
+    if (relationMap->find(relationName) != relationMap->end())
+    {
+        return relationMap->find(relationName)->second.numTuples;
+    }
+    return -1;
+}
+
 vector<string> Statistics::getAllAttsNames()
 {
     vector<string> allAtts;

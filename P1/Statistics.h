@@ -48,6 +48,7 @@ class Statistics
 	//respective relation, and returns the number of tuples of the containing relation
 	//NOTE:assumes that the attribute exists in at least one relation from relNames[]
 	int getNumTuples(string attName, char *relNames[], int numToJoin, int &numDistincts);
+	int getNumTuples(string relationName);
 
 	//getAll attributes in the stats object
 	vector<string> getAllAttsNames();

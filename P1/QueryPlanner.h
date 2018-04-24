@@ -11,6 +11,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <fstream>
+#include <iostream>
 
 extern FuncOperator *finalFunction;
 extern TableList *tables;
@@ -51,6 +53,10 @@ public:
   // OperationNode(string operationName, Schema *outSchema, vector<string>, Statistics *statistics);
 
   virtual void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const = 0;
+  std::string getOperationName();
+  AndList *buildSubAndList(AndList *boolean, Schema *schema);
+  bool isValidCondition(OrList *orList, Schema *joinSchema);
+  bool isValidCondition(ComparisonOp *compOp, Schema *joinSchema);
 
   virtual ~OperationNode();
 };
@@ -76,7 +82,7 @@ public:
   JoinOperationNode(string operationName, Statistics *Statistics, int outPipeID, OperationNode *node1, OperationNode *node2);
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
   void combineRelNames();
-  void populateOutSchema();
+  void populateJoinOutSchema();
 
   CNF cnf;
   Record literal;
@@ -144,13 +150,19 @@ private:
   vector<OperationNode *> nodesVector;
   char *outFilePath;
   FILE *outFile;
+  std::ofstream outStream;
   char *inFilePath;
   Statistics *statistics;
+  AndList *andList;
 
 public:
-  QueryPlanner(Statistics *statistics)
+  QueryPlanner(Statistics *statistics, char *inFilePath, char *outFilePath, AndList *andList)
   {
     this->statistics = statistics;
+    this->inFilePath = inFilePath;
+    this->outFilePath = outFilePath;
+    this->andList = andList;
+    outStream.open(outFilePath);
   }
   void initLeaves();
   void planJoins();

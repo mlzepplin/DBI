@@ -11,7 +11,7 @@ void QueryPlanner::initLeaves()
     while (tables != NULL)
     {
         statistics->CopyRel(tables->tableName, tables->aliasAs);
-        Schema *outSchema = new Schema(catalogPath, tables->tableName);
+        Schema *outSchema = new Schema(catalogPath, tables->tableName, tables->aliasAs);
         OperationNode *currentNode = new SingletonLeafNode("leaf", statistics, outSchema, outPipeId, tables->tableName, tables->aliasAs);
         outPipeId++;
         nodesVector.push_back(currentNode);
@@ -22,10 +22,25 @@ void QueryPlanner::planOperationOrder()
 {
     initLeaves();
     planJoins();
-    performSum();
+    //performSum();
 }
 void QueryPlanner::printOperationOrder()
 {
+    for (int i = 0; i < nodesVector.size(); i++)
+    {
+        string nodeType = nodesVector[i]->getOperationName();
+        if (nodeType == "join")
+        {
+            ((JoinOperationNode *)nodesVector[i])->printNodeInfo(outStream, 0);
+        }
+        else if (nodeType == "leaf")
+        {
+
+            ((SingletonLeafNode *)nodesVector[i])->printNodeInfo(outStream, 0);
+        }
+        else
+            ;
+    }
 }
 
 void QueryPlanner::planJoins()
@@ -36,13 +51,17 @@ void QueryPlanner::planJoins()
     //second, to it, we'll append the other estimates, which are unary in nature
     //and then what we print it out using the print helper method to the outFile
     vector<OperationNode *> optimalNodesVector;
+    //required for printing purposes
+    vector<JoinOperationNode *> optimalJoinVector;
     vector<OperationNode *>::iterator nodesVecIter;
     double optimalEstimate = DBL_MAX;
+    AndList *tempAndList = boolean;
     //get all the permutations of the list and break at the optimal one
     //RMEEMBER - DON'T ALTER THE ACTUAL LEAF LIST!!
     while (std::next_permutation(nodesVector.begin(), nodesVector.end()))
     {
         vector<OperationNode *> currentNodesVector = nodesVector;
+        vector<JoinOperationNode *> currentJoinVector;
         Statistics stats = *statistics;
         double currentEstimate = 0.0;
         while (currentNodesVector.size() > 1)
@@ -54,30 +73,35 @@ void QueryPlanner::planJoins()
             OperationNode *node2 = currentNodesVector.back();
             currentNodesVector.pop_back();
 
-            //constructing new JoinNode which inherently updates relNames,numRelations as well
             int outPipeId = std::max(node1->outPipeID, node2->outPipeID) + 1;
-            OperationNode *joinNode = new JoinOperationNode("join", node1->statistics, outPipeId, node1, node2);
+            //constructing new JoinNode which inherently updates relNames,numRelations as well
+            //populates combined outschema as well
+            JoinOperationNode *joinNode = new JoinOperationNode("join", node1->statistics, outPipeId, node1, node2);
 
-            //join em and
-            currentEstimate += joinNode->statistics->Estimate(boolean, joinNode->relationNames, joinNode->numRelations);
-            joinNode->statistics->Apply(boolean, joinNode->relationNames, joinNode->numRelations);
+            //populate subAndlist
+            AndList *subAndList = joinNode->buildSubAndList(boolean, joinNode->outSchema);
+            //join and estimate
+            currentEstimate += joinNode->statistics->Estimate(subAndList, joinNode->relationNames, joinNode->numRelations);
+            joinNode->statistics->Apply(subAndList, joinNode->relationNames, joinNode->numRelations);
 
-            currentNodesVector.push_back(joinNode);
+            currentNodesVector.push_back((OperationNode *)joinNode);
+            currentJoinVector.push_back(joinNode);
         }
         if (currentEstimate < optimalEstimate)
         {
             optimalEstimate = currentEstimate;
-            optimalNodesVector = currentNodesVector;
+            optimalNodesVector = nodesVector;
+            optimalJoinVector = currentJoinVector;
         }
     }
-    //note, at the end when all the joins are done, we'll have only one
-    //node (JoinOperationNode) in the optimalNodesVector, and its outschema
-    //will be all the prepended alisaed attributes
-    //constructing the outSchema for the final join
-    ((JoinOperationNode *)optimalNodesVector[0])->populateOutSchema();
+    for (int i = optimalJoinVector.size() - 1; i >= 0; i--)
+    {
+        optimalJoinVector[i]->printNodeInfo();
+    }
 }
 
 //OperationNode
+
 OperationNode::OperationNode(string operationName, Statistics *statistics, int outPipeID)
 {
     this->operationName = operationName;
@@ -91,6 +115,64 @@ OperationNode::OperationNode(string operationName, Statistics *statistics, Schem
     this->outPipeID = outPipeID;
     this->outSchema = outSchema;
 }
+std::string OperationNode::getOperationName()
+{
+    return operationName;
+}
+
+AndList *OperationNode::buildSubAndList(AndList *boolean, Schema *schema)
+{
+    AndList *subAndList = NULL;
+
+    AndList header;
+    header.rightAnd = boolean;
+
+    AndList *prev = &header;
+    AndList *current = boolean;
+
+    //GOAL:: get the subAndList
+    OrList *orList;
+    for (; current; current = prev->rightAnd)
+    {
+        orList = current->left;
+        if (isValidCondition(orList, schema))
+        {
+            prev->rightAnd = current->rightAnd;
+            current->rightAnd = subAndList;
+            subAndList = current;
+        }
+        else
+        {
+            prev = current;
+        }
+    }
+
+    subAndList = header.rightAnd;
+    return subAndList;
+}
+
+bool OperationNode::isValidCondition(OrList *orList, Schema *joinSchema)
+{
+    for (; orList; orList = orList->rightOr)
+    {
+        if (!isValidCondition(orList->left, joinSchema))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool OperationNode::isValidCondition(ComparisonOp *compOp, Schema *joinSchema)
+{
+    Operand *leftOperand = compOp->left;
+    Operand *rightOperand = compOp->right;
+
+    bool leftAttInSchema = (joinSchema->Find(leftOperand->value) != -1) ? true : false;
+    bool rightAttInSchema = (joinSchema->Find(rightOperand->value) != -1) ? true : false;
+
+    return (leftOperand->code != NAME || leftAttInSchema) && (rightOperand->code != NAME || rightAttInSchema);
+}
 
 //SingletonLeafNode
 SingletonLeafNode::SingletonLeafNode(string operationName, Statistics *statistics, Schema *outSchema, int outPipeId, char *relationName, char *aliasName) : OperationNode(operationName, statistics, outSchema, outPipeId)
@@ -100,37 +182,36 @@ SingletonLeafNode::SingletonLeafNode(string operationName, Statistics *statistic
     this->outSchema = outSchema;
     numRelations = 1;
     this->statistics = statistics;
+    estimatedTuples = statistics->getNumTuples(relationNames[0]);
+}
+void SingletonLeafNode::printNodeInfo(std::ostream &os, size_t level) const
+{
+    os << "singletonLeaf CNF:" << endl;
+    //cnf.Print();
+    for (int i = 0; i < numRelations; i++)
+        os << relationNames[i] << ", ";
+    os << endl;
+    os << "Estimate = " << estimatedTuples << endl;
 }
 
-void JoinOperationNode::populateOutSchema()
+void JoinOperationNode::populateJoinOutSchema()
 {
     //go through all the table names, get their alias from aliasmappings
     //find their attributes from the relation map and build outschema
-    int numTotalAtts = 0;
-    //loop gets the total NUM of Atts there will be
-    while (tables != NULL)
-    {
-        Attribute *tempAttList;
-        Schema aliasSchema(catalogPath, tables->tableName, tables->aliasAs);
-        numTotalAtts += aliasSchema.GetNumAtts();
-        tables = tables->next;
-    }
+    int leftNumAtts = leftOperationNode->outSchema->GetNumAtts();
+    int rightNumAtts = rightOperationNode->outSchema->GetNumAtts();
+    int numTotalAtts = leftNumAtts + rightNumAtts;
 
     Attribute *joinAttList = new Attribute[numTotalAtts];
+    Attribute *leftAttList = leftOperationNode->outSchema->GetAtts();
+    Attribute *rightAttList = rightOperationNode->outSchema->GetAtts();
     int i = 0;
-    while (tables != NULL)
-    {
-        Attribute *tempAttList;
-        //generate alias's schema
-        Schema aliasSchema(catalogPath, tables->tableName, tables->aliasAs);
-        //get all attributes of the schema
-        tempAttList = aliasSchema.GetAtts();
-        for (int j = 0; j < aliasSchema.GetNumAtts(); j++, i++)
-        {
-            joinAttList[i] = tempAttList[j];
-        }
-        tables = tables->next;
-    }
+    for (; i < leftNumAtts; i++)
+        joinAttList[i] = leftAttList[i];
+
+    for (int j = 0; i < numTotalAtts; i++, j++)
+        joinAttList[i] = rightAttList[j];
+
     Schema outSchema(catalogPath, numTotalAtts, joinAttList);
     this->outSchema = &outSchema;
 }
@@ -140,6 +221,7 @@ JoinOperationNode::JoinOperationNode(string operationName, Statistics *Statistic
     leftOperationNode = node1;
     rightOperationNode = node2;
     combineRelNames();
+    populateJoinOutSchema();
 }
 
 void JoinOperationNode::combineRelNames()
@@ -162,7 +244,10 @@ void JoinOperationNode::combineRelNames()
 void JoinOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 {
     os << "Join CNF:" << endl;
-    cnf.Print();
+    //cnf.Print();
+    for (int i = 0; i < numRelations; i++)
+        os << relationNames[i] << ", ";
+    os << endl;
     os << "Estimate = " << estimatedTuples << endl;
 }
 
@@ -197,6 +282,6 @@ void QueryPlanner::performProject()
 
 GroupByOperationNode::GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node) : OperationNode("GroupBy", NULL, resultSchema(groupingAtts, parseTree, node), 0)
 {
-    groupOrder.growFromParseTree(groupingAtts, node->outSchema);
-    func.GrowFromParseTree(parseTree, *node->outSchema);
+    // groupOrder.growFromParseTree(groupingAtts, node->outSchema);
+    // func.GrowFromParseTree(parseTree, *node->outSchema);
 }
