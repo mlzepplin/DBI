@@ -8,6 +8,7 @@
 #include "Function.h"
 #include "ParseTree.h"
 #include "Comparison.h"
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -24,12 +25,24 @@ extern int distinctFunc;
 
 //QUESTION? - DOES EVERY NODE NEED TO MAINTAIN ITS OWN STATS OBJECT
 //OR ALL REFER TO A COMMON OBJECT THAT GETS UPDATED FOR EACH AS WE GO ALONG?
+class QueryPlanner;
+class JoinOperationNode;
+class GroupByNode;
+class SingletonLeafNode;
+class WriteOperationNode;
+class DupRemovalOperationNode;
+class SumOperationNode;
+class ProjectOperationNode;
 
 class OperationNode
 {
   friend class QueryPlanner;
   friend class JoinOperationNode;
   friend class GroupByNode;
+  friend class SingletonLeafNode;
+  friend class WriteOperationNode;
+  friend class DupRemovalOperationNode;
+  friend class SumOperationNode;
 
 protected:
   Schema *outSchema;
@@ -46,6 +59,8 @@ protected:
 
 public:
   //constructors
+  OperationNode(string operationName, int outPipeID);
+  OperationNode(string operationName, Schema *outSchema, int outPipeID);
   OperationNode(string operationName, Statistics *statistics, int outPipeID);
   OperationNode(string operationName, Statistics *statistics, Schema *outSchema, int outPipeID);
 
@@ -58,28 +73,31 @@ public:
   bool isValidCondition(OrList *orList, Schema *joinSchema);
   bool isValidCondition(ComparisonOp *compOp, Schema *joinSchema);
 
-  virtual ~OperationNode();
+  //virtual ~OperationNode();
 };
 
 class SingletonLeafNode : public OperationNode
 {
+  // friend class QueryPlanner;
+
 private:
   char *aliasName;
 
 public:
-  SingletonLeafNode(string operationName, Statistics *statistics, Schema *outSchema, int outPipeId, char *relationName, char *aliasName);
+  SingletonLeafNode(Statistics *statistics, Schema *outSchema, int outPipeId, char *relationName, char *aliasName);
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
 };
 
 class JoinOperationNode : public OperationNode
 {
+  // friend class QueryPlanner;
 
 private:
   OperationNode *leftOperationNode;
   OperationNode *rightOperationNode;
 
 public:
-  JoinOperationNode(string operationName, Statistics *Statistics, int outPipeID, OperationNode *node1, OperationNode *node2);
+  JoinOperationNode(Statistics *Statistics, int outPipeID, OperationNode *node1, OperationNode *node2);
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
   void combineRelNames();
   void populateJoinOutSchema();
@@ -90,56 +108,60 @@ public:
 
 class ProjectOperationNode : public OperationNode
 {
-  friend class QueryPlanner;
-  ProjectOperationNode(NameList *atts, OperationNode *node);
-  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
+  // friend class QueryPlanner;
 
   int keepMe[MAX_ATTS];
   int numInputAtts;
   int numProjectedAtts;
-};
 
-class SelectOperationNode : public OperationNode
-{
+public:
+  ProjectOperationNode(NameList *atts, OperationNode *node, int pipeId); //will update outschema from inside
+  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
 };
 
 class DupRemovalOperationNode : public OperationNode
 {
-  friend class QueryPlanner;
-
-  DupRemovalOperationNode(OperationNode *node);
-  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
+  //friend class QueryPlanner;
   OrderMaker dupRemovalOrder;
+
+public:
+  DupRemovalOperationNode(OperationNode *node, int pipeId);
+  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
 };
 
 class SumOperationNode : public OperationNode
 {
-  friend class QueryPlanner;
+  // friend class QueryPlanner;
+  Function func;
 
-  SumOperationNode(FuncOperator *parseTree, OperationNode *node);
+public:
+  SumOperationNode(FuncOperator *parseTree, OperationNode *node, int pipeId);
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
   Schema *resultSchema(FuncOperator *parseTree, OperationNode *node);
-  Function func;
 };
 
 class GroupByOperationNode : public OperationNode
 {
-  friend class QueryPlanner;
+  // friend class QueryPlanner;
 
-  GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node);
-  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
-  Schema *resultSchema(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node);
   OrderMaker groupOrder;
   Function func;
+
+public:
+  GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node);
+  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
+  Schema *resultantSchema(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node);
 };
 
 class WriteOperationNode : public OperationNode
 {
-  friend class QueryPlanner;
+  // friend class QueryPlanner;
 
-  WriteOperationNode(FILE *outFile, OperationNode *node);
-  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
   FILE *outputFile;
+
+public:
+  WriteOperationNode(FILE *outFile, OperationNode *node, int pipeId);
+  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
 };
 
 class QueryPlanner

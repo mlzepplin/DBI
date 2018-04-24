@@ -49,6 +49,9 @@ class Schema
 	// this finds the type of the given attribute
 	Type FindType(const char *attName);
 
+	//added deep copy constructor
+	Schema(const Schema &sch);
+
 	// this reads the specification for the schema in from a file
 	Schema(const char *fName, const char *relName);
 

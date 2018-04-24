@@ -66,6 +66,11 @@ class Function
 		Apply(buffer, intValue, doubleValue);
 		return returnsInt ? intValue : doubleValue;
 	}
+
+	Type getSumType()
+	{
+		return returnsInt ? Int : Double;
+	}
 };
 
 #endif

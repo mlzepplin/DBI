@@ -1,7 +1,7 @@
 #include "QueryPlanner.h"
 #include <float.h>
 
-extern char *catalogPath;
+char *catalogPath = "./catalog";
 
 //QueryPlanner
 void QueryPlanner::initLeaves()
@@ -43,6 +43,29 @@ void QueryPlanner::printOperationOrder()
     }
 }
 
+void QueryPlanner::performSum()
+{
+    //Perform groupby if grouping attributes are provided
+    if (groupingAtts)
+    {
+        if (!finalFunction)
+        {
+            cout << "Group by can't be performed without aggregate function";
+            exit(-1);
+        }
+        if (distinctFunc)
+        {
+            root = new DupRemovalOperationNode(root);
+        }
+
+        root = new GroupByOperationNode(groupingAtts, finalFunction, root);
+    }
+    else if (finalFunction)
+    {
+        root = new SumOperationNode(finalFunction, root);
+    }
+}
+
 void QueryPlanner::planJoins()
 {
     //steps to do
@@ -58,7 +81,7 @@ void QueryPlanner::planJoins()
     AndList *tempAndList = boolean;
     //get all the permutations of the list and break at the optimal one
     //RMEEMBER - DON'T ALTER THE ACTUAL LEAF LIST!!
-    while (std::next_permutation(nodesVector.begin(), nodesVector.end()))
+    while (next_permutation(nodesVector.begin(), nodesVector.end()))
     {
         vector<OperationNode *> currentNodesVector = nodesVector;
         vector<JoinOperationNode *> currentJoinVector;
@@ -98,6 +121,12 @@ void QueryPlanner::planJoins()
     {
         optimalJoinVector[i]->printNodeInfo();
     }
+}
+
+void QueryPlanner::performProject()
+{
+    if (attsToSelect && !finalFunction && !groupingAtts)
+        root = new ProjectOperationNode(attsToSelect, root);
 }
 
 //OperationNode
@@ -175,7 +204,7 @@ bool OperationNode::isValidCondition(ComparisonOp *compOp, Schema *joinSchema)
 }
 
 //SingletonLeafNode
-SingletonLeafNode::SingletonLeafNode(string operationName, Statistics *statistics, Schema *outSchema, int outPipeId, char *relationName, char *aliasName) : OperationNode(operationName, statistics, outSchema, outPipeId)
+SingletonLeafNode::SingletonLeafNode(Statistics *statistics, Schema *outSchema, int outPipeId, char *relationName, char *aliasName) : OperationNode("leaf", statistics, outSchema, outPipeId)
 {
     this->relationNames[0] = relationName;
     this->aliasName = aliasName;
@@ -194,6 +223,14 @@ void SingletonLeafNode::printNodeInfo(std::ostream &os, size_t level) const
     os << "Estimate = " << estimatedTuples << endl;
 }
 
+//Join Operation Node
+JoinOperationNode::JoinOperationNode(Statistics *Statistics, int outPipeID, OperationNode *node1, OperationNode *node2) : OperationNode("join", statistics, outPipeID)
+{
+    leftOperationNode = node1;
+    rightOperationNode = node2;
+    combineRelNames();
+    populateJoinOutSchema();
+}
 void JoinOperationNode::populateJoinOutSchema()
 {
     //go through all the table names, get their alias from aliasmappings
@@ -214,14 +251,6 @@ void JoinOperationNode::populateJoinOutSchema()
 
     Schema outSchema(catalogPath, numTotalAtts, joinAttList);
     this->outSchema = &outSchema;
-}
-
-JoinOperationNode::JoinOperationNode(string operationName, Statistics *Statistics, int outPipeID, OperationNode *node1, OperationNode *node2) : OperationNode(operationName, statistics, outPipeID)
-{
-    leftOperationNode = node1;
-    rightOperationNode = node2;
-    combineRelNames();
-    populateJoinOutSchema();
 }
 
 void JoinOperationNode::combineRelNames()
@@ -251,37 +280,85 @@ void JoinOperationNode::printNodeInfo(std::ostream &os, size_t level) const
     os << "Estimate = " << estimatedTuples << endl;
 }
 
-void QueryPlanner::performSum()
-{
-    //Perform groupby if grouping attributes are provided
-    if (groupingAtts)
-    {
-        if (!finalFunction)
-        {
-            cout << "Group by can't be performed without aggregate function";
-            exit(-1);
-        }
-        if (distinctFunc)
-        {
-            root = new DupRemovalOperationNode(root);
-        }
-
-        root = new GroupByOperationNode(groupingAtts, finalFunction, root);
-    }
-    else if (finalFunction)
-    {
-        root = new SumOperationNode(finalFunction, root);
-    }
-}
-
-void QueryPlanner::performProject()
-{
-    if (attsToSelect && !finalFunction && !groupingAtts)
-        root = new ProjectOperationNode(attsToSelect, root);
-}
-
-GroupByOperationNode::GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node) : OperationNode("GroupBy", NULL, resultSchema(groupingAtts, parseTree, node), 0)
+//GroupBy Operation
+GroupByOperationNode::GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node) : OperationNode("groupBy", resultantSchema(groupingAtts, parseTree, node), 0)
 {
     // groupOrder.growFromParseTree(groupingAtts, node->outSchema);
     // func.GrowFromParseTree(parseTree, *node->outSchema);
+}
+void GroupByOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+{
+    // os << "singletonLeaf CNF:" << endl;
+    // //cnf.Print();
+    // for (int i = 0; i < numRelations; i++)
+    //     os << relationNames[i] << ", ";
+    // os << endl;
+    // os << "Estimate = " << estimatedTuples << endl;
+}
+Schema *GroupByOperationNode::resultantSchema(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node)
+{
+}
+
+//SumOperationNode
+SumOperationNode::SumOperationNode(FuncOperator *parseTree, OperationNode *node, int pipeId) : OperationNode("sum", pipeId)
+{
+    Function fun;
+    Attribute atts[2][1] = {{{"sum", Int}}, {{"sum", Double}}};
+    fun.GrowFromParseTree(parseTree, *node->outSchema);
+    //as not passing the outschema to base, so setting it here
+    this->outSchema = new Schema("", 1, atts[fun.getSumType()]);
+}
+void SumOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+{
+    // os << "singletonLeaf CNF:" << endl;
+    // //cnf.Print();
+    // for (int i = 0; i < numRelations; i++)
+    //     os << relationNames[i] << ", ";
+    // os << endl;
+    // os << "Estimate = " << estimatedTuples << endl;
+}
+
+//duplicate removal operation node
+DupRemovalOperationNode::DupRemovalOperationNode(OperationNode *node, int pipeId) : OperationNode("dupReamoval", pipeId)
+{
+    this->outSchema = new Schema(*node->outSchema);
+}
+void DupRemovalOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+{
+    // os << "singletonLeaf CNF:" << endl;
+    // //cnf.Print();
+    // for (int i = 0; i < numRelations; i++)
+    //     os << relationNames[i] << ", ";
+    // os << endl;
+    // os << "Estimate = " << estimatedTuples << endl;
+}
+
+//Project functionality
+ProjectOperationNode::ProjectOperationNode(NameList *atts, OperationNode *node, int pipeId) : OperationNode("project", pipeId)
+{
+    //update the outschema of this ProjectNode
+}
+void ProjectOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+{
+    // os << "singletonLeaf CNF:" << endl;
+    // //cnf.Print();
+    // for (int i = 0; i < numRelations; i++)
+    //     os << relationNames[i] << ", ";
+    // os << endl;
+    // os << "Estimate = " << estimatedTuples << endl;
+}
+
+//Write OperationNode
+WriteOperationNode::WriteOperationNode(FILE *outFile, OperationNode *node, int pipeId) : OperationNode("write", pipeId)
+{
+    this->outSchema = new Schema(*node->outSchema);
+}
+void WriteOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+{
+    // os << "singletonLeaf CNF:" << endl;
+    // //cnf.Print();
+    // for (int i = 0; i < numRelations; i++)
+    //     os << relationNames[i] << ", ";
+    // os << endl;
+    // os << "Estimate = " << estimatedTuples << endl;
 }
