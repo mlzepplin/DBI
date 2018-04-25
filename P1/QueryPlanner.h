@@ -8,6 +8,7 @@
 #include "Function.h"
 #include "ParseTree.h"
 #include "Comparison.h"
+
 #include <algorithm>
 #include <iostream>
 #include <string>
@@ -47,9 +48,13 @@ class OperationNode
 protected:
   Schema *outSchema;
   string operationName;
+
   char *relationNames[MAX_NUM_RELS]; //populated differently for different things
   int numRelations;
+
   int outPipeID;
+  static int pipeId;
+
   Statistics *statistics;
   int estimatedTuples;
   // int optimalTuples;
@@ -59,10 +64,10 @@ protected:
 
 public:
   //constructors
-  OperationNode(string operationName, int outPipeID);
-  OperationNode(string operationName, Schema *outSchema, int outPipeID);
-  OperationNode(string operationName, Statistics *statistics, int outPipeID);
-  OperationNode(string operationName, Statistics *statistics, Schema *outSchema, int outPipeID);
+  OperationNode(string operationName);
+  OperationNode(string operationName, Schema *outSchema);
+  OperationNode(string operationName, Statistics *statistics);
+  OperationNode(string operationName, Statistics *statistics, Schema *outSchema);
 
   // OperationNode(string operationName, Schema *outSchema, string, Statistics *statistics);
   // OperationNode(string operationName, Schema *outSchema, vector<string>, Statistics *statistics);
@@ -78,26 +83,24 @@ public:
 
 class SingletonLeafNode : public OperationNode
 {
-  // friend class QueryPlanner;
 
 private:
   char *aliasName;
 
 public:
-  SingletonLeafNode(Statistics *statistics, Schema *outSchema, int outPipeId, char *relationName, char *aliasName);
+  SingletonLeafNode(Statistics *statistics, Schema *outSchema, char *relationName, char *aliasName);
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
 };
 
 class JoinOperationNode : public OperationNode
 {
-  // friend class QueryPlanner;
 
 private:
   OperationNode *leftOperationNode;
   OperationNode *rightOperationNode;
 
 public:
-  JoinOperationNode(Statistics *Statistics, int outPipeID, OperationNode *node1, OperationNode *node2);
+  JoinOperationNode(Statistics *Statistics, OperationNode *node1, OperationNode *node2);
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
   void combineRelNames();
   void populateJoinOutSchema();
@@ -108,41 +111,37 @@ public:
 
 class ProjectOperationNode : public OperationNode
 {
-  // friend class QueryPlanner;
 
   int keepMe[MAX_ATTS];
   int numInputAtts;
   int numProjectedAtts;
 
 public:
-  ProjectOperationNode(NameList *atts, OperationNode *node, int pipeId); //will update outschema from inside
+  ProjectOperationNode(NameList *atts, OperationNode *node); //will update outschema from inside
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
 };
 
 class DupRemovalOperationNode : public OperationNode
 {
-  //friend class QueryPlanner;
   OrderMaker dupRemovalOrder;
 
 public:
-  DupRemovalOperationNode(OperationNode *node, int pipeId);
+  DupRemovalOperationNode(OperationNode *node);
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
 };
 
 class SumOperationNode : public OperationNode
 {
-  // friend class QueryPlanner;
   Function func;
 
 public:
-  SumOperationNode(FuncOperator *parseTree, OperationNode *node, int pipeId);
+  SumOperationNode(FuncOperator *parseTree, OperationNode *node);
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
   Schema *resultSchema(FuncOperator *parseTree, OperationNode *node);
 };
 
 class GroupByOperationNode : public OperationNode
 {
-  // friend class QueryPlanner;
 
   OrderMaker groupOrder;
   Function func;
@@ -155,12 +154,11 @@ public:
 
 class WriteOperationNode : public OperationNode
 {
-  // friend class QueryPlanner;
 
   FILE *outputFile;
 
 public:
-  WriteOperationNode(FILE *outFile, OperationNode *node, int pipeId);
+  WriteOperationNode(FILE *outFile, OperationNode *node);
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
 };
 

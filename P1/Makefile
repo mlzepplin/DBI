@@ -7,8 +7,8 @@ ifdef linux
 tag = -n
 endif
 
-main: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o Statistics.o y.tab.o lex.yy.o main.o HeapFile.o SortedFile.o QueryPlanner.o
-	$(CC) -o main Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o Statistics.o y.tab.o lex.yy.o main.o -lpthread HeapFile.o SortedFile.o QueryPlanner.o
+main: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o Statistics.o y.tab.o lex.yy.o main.o HeapFile.o SortedFile.o QueryPlanner.o Function.o
+	$(CC) -o main Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o BigQ.o Statistics.o y.tab.o lex.yy.o main.o -lpthread HeapFile.o SortedFile.o QueryPlanner.o Function.o
 
 	
 main.o : main.cc
@@ -78,7 +78,7 @@ Statistics.o: Statistics.cc
 	$(CC) -g -c Statistics.cc
 
 QueryPlanner.o: QueryPlanner.cc
-	$(CC) -g -c QueryPlanner.cc Schema.h ParseTree.h Statistics.h Comparison.h
+	$(CC) -g -c QueryPlanner.cc Schema.h ParseTree.h Statistics.h Comparison.h 
 
 y.tab.o: Parser.y
 	yacc -d Parser.y

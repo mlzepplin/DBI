@@ -12,7 +12,7 @@ void QueryPlanner::initLeaves()
     {
         statistics->CopyRel(tables->tableName, tables->aliasAs);
         Schema *outSchema = new Schema(catalogPath, tables->tableName, tables->aliasAs);
-        OperationNode *currentNode = new SingletonLeafNode("leaf", statistics, outSchema, outPipeId, tables->tableName, tables->aliasAs);
+        OperationNode *currentNode = new SingletonLeafNode(statistics, outSchema, tables->tableName, tables->aliasAs);
         outPipeId++;
         nodesVector.push_back(currentNode);
         tables = tables->next;
@@ -99,7 +99,7 @@ void QueryPlanner::planJoins()
             int outPipeId = std::max(node1->outPipeID, node2->outPipeID) + 1;
             //constructing new JoinNode which inherently updates relNames,numRelations as well
             //populates combined outschema as well
-            JoinOperationNode *joinNode = new JoinOperationNode("join", node1->statistics, outPipeId, node1, node2);
+            JoinOperationNode *joinNode = new JoinOperationNode(node1->statistics, node1, node2);
 
             //populate subAndlist
             AndList *subAndList = joinNode->buildSubAndList(boolean, joinNode->outSchema);
@@ -131,18 +131,26 @@ void QueryPlanner::performProject()
 
 //OperationNode
 
-OperationNode::OperationNode(string operationName, Statistics *statistics, int outPipeID)
+int OperationNode::pipeId = 0;
+
+OperationNode::OperationNode(string operationName)
 {
     this->operationName = operationName;
-    this->statistics = statistics;
-    this->outPipeID = outPipeID;
+    this->outPipeID = pipeId++;
 }
-OperationNode::OperationNode(string operationName, Statistics *statistics, Schema *outSchema, int outPipeID)
+
+OperationNode::OperationNode(string operationName, Statistics *statistics)
 {
     this->operationName = operationName;
     this->statistics = statistics;
-    this->outPipeID = outPipeID;
+    this->outPipeID = pipeId++;
+}
+OperationNode::OperationNode(string operationName, Statistics *statistics, Schema *outSchema)
+{
+    this->operationName = operationName;
+    this->statistics = statistics;
     this->outSchema = outSchema;
+    this->outPipeID = pipeId++;
 }
 std::string OperationNode::getOperationName()
 {
@@ -204,7 +212,7 @@ bool OperationNode::isValidCondition(ComparisonOp *compOp, Schema *joinSchema)
 }
 
 //SingletonLeafNode
-SingletonLeafNode::SingletonLeafNode(Statistics *statistics, Schema *outSchema, int outPipeId, char *relationName, char *aliasName) : OperationNode("leaf", statistics, outSchema, outPipeId)
+SingletonLeafNode::SingletonLeafNode(Statistics *statistics, Schema *outSchema, char *relationName, char *aliasName) : OperationNode("leaf", statistics, outSchema)
 {
     this->relationNames[0] = relationName;
     this->aliasName = aliasName;
@@ -224,7 +232,7 @@ void SingletonLeafNode::printNodeInfo(std::ostream &os, size_t level) const
 }
 
 //Join Operation Node
-JoinOperationNode::JoinOperationNode(Statistics *Statistics, int outPipeID, OperationNode *node1, OperationNode *node2) : OperationNode("join", statistics, outPipeID)
+JoinOperationNode::JoinOperationNode(Statistics *Statistics, OperationNode *node1, OperationNode *node2) : OperationNode("join", statistics)
 {
     leftOperationNode = node1;
     rightOperationNode = node2;
@@ -281,7 +289,7 @@ void JoinOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 }
 
 //GroupBy Operation
-GroupByOperationNode::GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node) : OperationNode("groupBy", resultantSchema(groupingAtts, parseTree, node), 0)
+GroupByOperationNode::GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node) : OperationNode("groupBy", resultantSchema(groupingAtts, parseTree, node))
 {
     // groupOrder.growFromParseTree(groupingAtts, node->outSchema);
     // func.GrowFromParseTree(parseTree, *node->outSchema);
@@ -300,7 +308,15 @@ Schema *GroupByOperationNode::resultantSchema(NameList *groupingAtts, FuncOperat
 }
 
 //SumOperationNode
-SumOperationNode::SumOperationNode(FuncOperator *parseTree, OperationNode *node, int pipeId) : OperationNode("sum", pipeId)
+SumOperationNode::SumOperationNode(FuncOperator *parseTree, OperationNode *node) : OperationNode("sum")
+{
+    func.GrowFromParseTree(parseTree, *node->outSchema);
+}
+void SumOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+{
+}
+
+Schema *SumOperationNode::resultSchema(FuncOperator *parseTree, OperationNode *node)
 {
     Function fun;
     Attribute atts[2][1] = {{{"sum", Int}}, {{"sum", Double}}};
@@ -308,57 +324,30 @@ SumOperationNode::SumOperationNode(FuncOperator *parseTree, OperationNode *node,
     //as not passing the outschema to base, so setting it here
     this->outSchema = new Schema("", 1, atts[fun.getSumType()]);
 }
-void SumOperationNode::printNodeInfo(std::ostream &os, size_t level) const
-{
-    // os << "singletonLeaf CNF:" << endl;
-    // //cnf.Print();
-    // for (int i = 0; i < numRelations; i++)
-    //     os << relationNames[i] << ", ";
-    // os << endl;
-    // os << "Estimate = " << estimatedTuples << endl;
-}
 
 //duplicate removal operation node
-DupRemovalOperationNode::DupRemovalOperationNode(OperationNode *node, int pipeId) : OperationNode("dupReamoval", pipeId)
+DupRemovalOperationNode::DupRemovalOperationNode(OperationNode *node) : OperationNode("dupRemoval")
 {
     this->outSchema = new Schema(*node->outSchema);
 }
 void DupRemovalOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 {
-    // os << "singletonLeaf CNF:" << endl;
-    // //cnf.Print();
-    // for (int i = 0; i < numRelations; i++)
-    //     os << relationNames[i] << ", ";
-    // os << endl;
-    // os << "Estimate = " << estimatedTuples << endl;
 }
 
 //Project functionality
-ProjectOperationNode::ProjectOperationNode(NameList *atts, OperationNode *node, int pipeId) : OperationNode("project", pipeId)
+ProjectOperationNode::ProjectOperationNode(NameList *atts, OperationNode *node) : OperationNode("project")
 {
     //update the outschema of this ProjectNode
 }
 void ProjectOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 {
-    // os << "singletonLeaf CNF:" << endl;
-    // //cnf.Print();
-    // for (int i = 0; i < numRelations; i++)
-    //     os << relationNames[i] << ", ";
-    // os << endl;
-    // os << "Estimate = " << estimatedTuples << endl;
 }
 
 //Write OperationNode
-WriteOperationNode::WriteOperationNode(FILE *outFile, OperationNode *node, int pipeId) : OperationNode("write", pipeId)
+WriteOperationNode::WriteOperationNode(FILE *outFile, OperationNode *node) : OperationNode("write")
 {
     this->outSchema = new Schema(*node->outSchema);
 }
 void WriteOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 {
-    // os << "singletonLeaf CNF:" << endl;
-    // //cnf.Print();
-    // for (int i = 0; i < numRelations; i++)
-    //     os << relationNames[i] << ", ";
-    // os << endl;
-    // os << "Estimate = " << estimatedTuples << endl;
 }
