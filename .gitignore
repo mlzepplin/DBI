@@ -20,6 +20,7 @@ yyfunc.tab.h
 *.meta
 *.bigq
 *.out
+*.gch
 
 P1/Statistics.txt
 *.tar
