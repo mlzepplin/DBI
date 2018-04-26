@@ -289,10 +289,11 @@ void JoinOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 }
 
 //GroupBy Operation
-GroupByOperationNode::GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node) : OperationNode("groupBy", resultantSchema(groupingAtts, parseTree, node))
+GroupByOperationNode::GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node) : OperationNode("groupBy")
 {
-    // groupOrder.growFromParseTree(groupingAtts, node->outSchema);
-    // func.GrowFromParseTree(parseTree, *node->outSchema);
+    groupOrder.growFromParseTree(groupingAtts, node->outSchema);
+    func.GrowFromParseTree(parseTree, *node->outSchema);
+    outSchema = resultantSchema(groupingAtts, parseTree, node);
 }
 void GroupByOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 {
@@ -305,6 +306,12 @@ void GroupByOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 }
 Schema *GroupByOperationNode::resultantSchema(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node)
 {
+    Function f;
+    Attribute atts[2][1] = {{{"sum", Int}}, {{"sum", Double}}};
+    Schema *cSchema = node->outSchema;
+    f.GrowFromParseTree(parseTree, *cSchema);
+
+    return cSchema;
 }
 
 //SumOperationNode

@@ -77,8 +77,8 @@ Schema.o: Schema.cc
 Statistics.o: Statistics.cc
 	$(CC) -g -c Statistics.cc
 
-QueryPlanner.o: QueryPlanner.cc
-	$(CC) -g -c QueryPlanner.cc Schema.h ParseTree.h Statistics.h Comparison.h 
+QueryPlanner.o: QueryPlanner.h Schema.h ParseTree.h Statistics.h Comparison.h
+	$(CC) -g -c QueryPlanner.cc  
 
 y.tab.o: Parser.y
 	yacc -d Parser.y

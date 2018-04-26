@@ -28,7 +28,7 @@ extern int distinctFunc;
 //OR ALL REFER TO A COMMON OBJECT THAT GETS UPDATED FOR EACH AS WE GO ALONG?
 class QueryPlanner;
 class JoinOperationNode;
-class GroupByNode;
+class GroupByOperationNode;
 class SingletonLeafNode;
 class WriteOperationNode;
 class DupRemovalOperationNode;
@@ -39,7 +39,7 @@ class OperationNode
 {
   friend class QueryPlanner;
   friend class JoinOperationNode;
-  friend class GroupByNode;
+  friend class GroupByOperationNode;
   friend class SingletonLeafNode;
   friend class WriteOperationNode;
   friend class DupRemovalOperationNode;
