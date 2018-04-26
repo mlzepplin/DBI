@@ -8,6 +8,8 @@ void QueryPlanner::initLeaves()
 {
     // statistics->Read(inFilePath);
     int outPipeId = 1;
+    //driver for testing: used when the stats object is already populated from text file
+
     while (tables != NULL)
     {
         statistics->CopyRel(tables->tableName, tables->aliasAs);
@@ -159,32 +161,32 @@ std::string OperationNode::getOperationName()
 
 AndList *OperationNode::buildSubAndList(AndList *boolean, Schema *schema)
 {
-    AndList *subAndList = NULL;
+    AndList *subAndList;
+    AndList booleanCopy = *boolean;
+    //adding a dummy node as header to keep
+    //previous one step above current from the start
+    subAndList->rightAnd = &booleanCopy;
+    AndList *previous = subAndList;
+    AndList *current = subAndList->rightAnd;
 
-    AndList header;
-    header.rightAnd = boolean;
-
-    AndList *prev = &header;
-    AndList *current = boolean;
-
-    //GOAL:: get the subAndList
+    //GOAL:: parse the subAndList and trim all irrelevance
     OrList *orList;
-    for (; current; current = prev->rightAnd)
+    while (current != NULL)
     {
         orList = current->left;
         if (isValidCondition(orList, schema))
-        {
-            prev->rightAnd = current->rightAnd;
-            current->rightAnd = subAndList;
-            subAndList = current;
+        { //let this orlist stay
+            previous = current;
+            current = current->rightAnd;
         }
         else
-        {
-            prev = current;
+        { //skip current and trim it out
+            previous->rightAnd = current->rightAnd;
+            current = previous->rightAnd;
         }
     }
-
-    subAndList = header.rightAnd;
+    //removing the initial dummy node that was added just to init previous
+    subAndList = subAndList->rightAnd;
     return subAndList;
 }
 

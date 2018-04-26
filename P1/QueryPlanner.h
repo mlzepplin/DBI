@@ -171,15 +171,13 @@ private:
   char *outFilePath;
   FILE *outFile;
   std::ofstream outStream;
-  char *inFilePath;
   Statistics *statistics;
   AndList *andList;
 
 public:
-  QueryPlanner(Statistics *statistics, char *inFilePath, char *outFilePath, AndList *andList)
+  QueryPlanner(Statistics *statistics, char *outFilePath, AndList *andList)
   {
     this->statistics = statistics;
-    this->inFilePath = inFilePath;
     this->outFilePath = outFilePath;
     this->andList = andList;
     outStream.open(outFilePath);
