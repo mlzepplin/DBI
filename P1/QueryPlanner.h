@@ -74,9 +74,6 @@ public:
 
   virtual void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const = 0;
   std::string getOperationName();
-  AndList *buildSubAndList(AndList *boolean, Schema *schema);
-  bool isValidCondition(OrList *orList, Schema *joinSchema);
-  bool isValidCondition(ComparisonOp *compOp, Schema *joinSchema);
 
   //virtual ~OperationNode();
 };
@@ -92,7 +89,17 @@ public:
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
 };
 
-class JoinOperationNode : public OperationNode
+class AndListBasedOperationNode : public OperationNode
+{
+public:
+  AndListBasedOperationNode(string operationName, Statistics *statistics);
+  AndList *buildSubAndList(AndList *boolean, Schema *schema);
+  bool buildSubOrList(OrList *orList, Schema *schema);
+  virtual bool isValidCondition(ComparisonOp *compOp, Schema *schema) = 0;
+  virtual void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const = 0;
+};
+
+class JoinOperationNode : public AndListBasedOperationNode
 {
 
 private:
@@ -104,11 +111,26 @@ public:
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
   void combineRelNames();
   void populateJoinOutSchema();
+  bool isValidCondition(ComparisonOp *compOp, Schema *schema);
 
   CNF cnf;
   Record literal;
 };
 
+class SelectOperationNode : public AndListBasedOperationNode
+{
+public:
+  SelectOperationNode(Statistics *statistics);
+  bool isValidCondition(ComparisonOp *compOp, Schema *schema);
+  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
+};
+class SelectAfterJoinOperationNode : public AndListBasedOperationNode
+{
+public:
+  SelectAfterJoinOperationNode(Statistics *statistics);
+  bool isValidCondition(ComparisonOp *compOp, Schema *schema);
+  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
+};
 class ProjectOperationNode : public OperationNode
 {
 
@@ -167,7 +189,8 @@ class QueryPlanner
 
 private:
   OperationNode *root;
-  vector<OperationNode *> nodesVector;
+  vector<OperationNode *> nodesVector;         //represents the pseudo tree
+  vector<JoinOperationNode *> joinNodesVector; //represents the join pseudo tree
   char *outFilePath;
   FILE *outFile;
   std::ofstream outStream;

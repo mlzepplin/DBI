@@ -1,6 +1,8 @@
 
 #include <iostream>
 #include "ParseTree.h"
+#include "Statistics.h"
+#include "QueryPlanner.h"
 
 using namespace std;
 
@@ -45,4 +47,9 @@ int main()
 
 	cout << "distfunc" << distinctFunc << endl;
 	cout << "distatts" << distinctAtts << endl;
+
+	Statistics st;
+	st.Read("Statistics.txt");
+	char *outFilePath = "./QueryPlannerOutput.txt";
+	QueryPlanner queryPlanner(&st, outFilePath, boolean);
 }

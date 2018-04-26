@@ -70,11 +70,7 @@ void QueryPlanner::performSum()
 
 void QueryPlanner::planJoins()
 {
-    //steps to do
-    //the singletons should already be populated as leaf representation of the (pseudo)tree
-    //first we'll call for join's optimal estimate
-    //second, to it, we'll append the other estimates, which are unary in nature
-    //and then what we print it out using the print helper method to the outFile
+    //steps
     vector<OperationNode *> optimalNodesVector;
     //required for printing purposes
     vector<JoinOperationNode *> optimalJoinVector;
@@ -132,7 +128,6 @@ void QueryPlanner::performProject()
 }
 
 //OperationNode
-
 int OperationNode::pipeId = 0;
 
 OperationNode::OperationNode(string operationName)
@@ -159,7 +154,11 @@ std::string OperationNode::getOperationName()
     return operationName;
 }
 
-AndList *OperationNode::buildSubAndList(AndList *boolean, Schema *schema)
+//AndListBasedOperationNode
+AndListBasedOperationNode::AndListBasedOperationNode(string operationName, Statistics *statistics) : OperationNode(operationName, statistics){
+
+                                                                                                     };
+AndList *AndListBasedOperationNode::buildSubAndList(AndList *boolean, Schema *schema)
 {
     AndList *subAndList;
     AndList booleanCopy = *boolean;
@@ -170,11 +169,9 @@ AndList *OperationNode::buildSubAndList(AndList *boolean, Schema *schema)
     AndList *current = subAndList->rightAnd;
 
     //GOAL:: parse the subAndList and trim all irrelevance
-    OrList *orList;
     while (current != NULL)
     {
-        orList = current->left;
-        if (isValidCondition(orList, schema))
+        if (buildSubOrList(current->left, schema))
         { //let this orlist stay
             previous = current;
             current = current->rightAnd;
@@ -190,27 +187,77 @@ AndList *OperationNode::buildSubAndList(AndList *boolean, Schema *schema)
     return subAndList;
 }
 
-bool OperationNode::isValidCondition(OrList *orList, Schema *joinSchema)
+bool AndListBasedOperationNode::buildSubOrList(OrList *orList, Schema *schema)
 {
-    for (; orList; orList = orList->rightOr)
+    OrList *subOrList;
+    subOrList->rightOr = orList;
+    OrList *previous = subOrList;
+    OrList *current = subOrList->rightOr;
+
+    //GOAL:: parse the subOrList and trim all irrelevance
+    bool matchStatus = false;
+    while (current != NULL)
     {
-        if (!isValidCondition(orList->left, joinSchema))
-        {
-            return false;
+        //current->left is the comparisonOp
+        if (isValidCondition(current->left, schema))
+        { //let this compOp stay
+            matchStatus = true;
+            previous = current;
+            current = current->rightOr;
+        }
+        else
+        { //skip current and trim it out
+            previous->rightOr = current->rightOr;
+            current = previous->rightOr;
         }
     }
-    return true;
+    //removing the initial dummy node that was added just to init previous
+    orList = subOrList->rightOr;
+    return matchStatus;
 }
 
-bool OperationNode::isValidCondition(ComparisonOp *compOp, Schema *joinSchema)
+//(leftOperand->code != NAME || leftAttInSchema) && (rightOperand->code != NAME || rightAttInSchema)
+//SelectOperationNode
+SelectOperationNode::SelectOperationNode(Statistics *statistics) : AndListBasedOperationNode("select", statistics)
+{
+}
+bool SelectOperationNode::isValidCondition(ComparisonOp *compOp, Schema *schema)
+{
+
+    Operand *leftOperand = compOp->left;
+    Operand *rightOperand = compOp->right;
+    return (leftOperand->code == NAME && rightOperand->code != NAME && (schema->Find(leftOperand->value) != -1));
+}
+void SelectOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+{
+    // os << "singletonLeaf CNF:" << endl;
+    // //cnf.Print();
+    // for (int i = 0; i < numRelations; i++)
+    //     os << relationNames[i] << ", ";
+    // os << endl;
+    // os << "Estimate = " << estimatedTuples << endl;
+}
+
+//SelectAfterJoinNode
+SelectAfterJoinOperationNode::SelectAfterJoinOperationNode(Statistics *statistics) : AndListBasedOperationNode("selectAfterJoin", statistics)
+{
+}
+bool SelectAfterJoinOperationNode::isValidCondition(ComparisonOp *compOp, Schema *schema)
 {
     Operand *leftOperand = compOp->left;
     Operand *rightOperand = compOp->right;
-
-    bool leftAttInSchema = (joinSchema->Find(leftOperand->value) != -1) ? true : false;
-    bool rightAttInSchema = (joinSchema->Find(rightOperand->value) != -1) ? true : false;
-
-    return (leftOperand->code != NAME || leftAttInSchema) && (rightOperand->code != NAME || rightAttInSchema);
+    bool leftAttInSchema = (schema->Find(leftOperand->value) != -1) ? true : false;
+    bool rightAttInSchema = (schema->Find(rightOperand->value) != -1) ? true : false;
+    return (leftOperand->code == NAME && rightOperand->code == NAME && (compOp->code != EQUALS) && leftAttInSchema && rightAttInSchema);
+}
+void SelectAfterJoinOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+{
+    // os << "singletonLeaf CNF:" << endl;
+    // //cnf.Print();
+    // for (int i = 0; i < numRelations; i++)
+    //     os << relationNames[i] << ", ";
+    // os << endl;
+    // os << "Estimate = " << estimatedTuples << endl;
 }
 
 //SingletonLeafNode
@@ -234,12 +281,22 @@ void SingletonLeafNode::printNodeInfo(std::ostream &os, size_t level) const
 }
 
 //Join Operation Node
-JoinOperationNode::JoinOperationNode(Statistics *Statistics, OperationNode *node1, OperationNode *node2) : OperationNode("join", statistics)
+JoinOperationNode::JoinOperationNode(Statistics *Statistics, OperationNode *node1, OperationNode *node2) : AndListBasedOperationNode("join", statistics)
 {
     leftOperationNode = node1;
     rightOperationNode = node2;
     combineRelNames();
     populateJoinOutSchema();
+}
+bool JoinOperationNode::isValidCondition(ComparisonOp *compOp, Schema *schema)
+{
+    Operand *leftOperand = compOp->left;
+    Operand *rightOperand = compOp->right;
+
+    bool leftAttInSchema = (schema->Find(leftOperand->value) != -1) ? true : false;
+    bool rightAttInSchema = (schema->Find(rightOperand->value) != -1) ? true : false;
+
+    return (leftOperand->code == NAME && rightOperand->code == NAME && (compOp->code == EQUALS) && leftAttInSchema && rightAttInSchema);
 }
 void JoinOperationNode::populateJoinOutSchema()
 {
@@ -355,6 +412,7 @@ void ProjectOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 //Write OperationNode
 WriteOperationNode::WriteOperationNode(FILE *outFile, OperationNode *node) : OperationNode("write")
 {
+    outFile = outFile;
     this->outSchema = new Schema(*node->outSchema);
 }
 void WriteOperationNode::printNodeInfo(std::ostream &os, size_t level) const

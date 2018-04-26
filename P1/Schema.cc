@@ -44,8 +44,11 @@ Attribute *Schema ::GetAtts()
 	return myAtts;
 }
 
-Schema::Schema(const Schema &sch) : numAtts(sch.numAtts), myAtts(new Attribute[sch.numAtts]), fileName(strdup(sch.fileName))
+Schema::Schema(const Schema &sch)
 {
+	numAtts = sch.numAtts;
+	myAtts = new Attribute[sch.numAtts];
+	fileName = strdup(sch.fileName);
 	for (int i = 0; i < numAtts; ++i)
 	{
 		myAtts[i].name = strdup(sch.myAtts[i].name);
