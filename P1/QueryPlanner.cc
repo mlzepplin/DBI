@@ -9,7 +9,6 @@ void QueryPlanner::initLeaves()
     // statistics->Read(inFilePath);
     int outPipeId = 1;
     //driver for testing: used when the stats object is already populated from text file
-
     while (tables != NULL)
     {
         statistics->CopyRel(tables->tableName, tables->aliasAs);
@@ -17,6 +16,7 @@ void QueryPlanner::initLeaves()
         OperationNode *currentNode = new SingletonLeafNode(statistics, outSchema, tables->tableName, tables->aliasAs);
         outPipeId++;
         nodesVector.push_back(currentNode);
+        currentNode->printNodeInfo();
         tables = tables->next;
     }
 }
