@@ -7,14 +7,13 @@ char *catalogPath = "./catalog";
 void QueryPlanner::initLeaves()
 {
     // statistics->Read(inFilePath);
-    int outPipeId = 1;
+
     //driver for testing: used when the stats object is already populated from text file
     while (tables != NULL)
     {
         statistics->CopyRel(tables->tableName, tables->aliasAs);
         Schema *outSchema = new Schema(catalogPath, tables->tableName, tables->aliasAs);
         OperationNode *currentNode = new SingletonLeafNode(statistics, outSchema, tables->tableName, tables->aliasAs);
-        outPipeId++;
         nodesVector.push_back(currentNode);
         currentNode->printNodeInfo();
         tables = tables->next;
@@ -70,6 +69,7 @@ void QueryPlanner::performSum()
 
 void QueryPlanner::planJoins()
 {
+
     //steps
     vector<OperationNode *> optimalNodesVector;
     //required for printing purposes
@@ -79,32 +79,36 @@ void QueryPlanner::planJoins()
     AndList *tempAndList = boolean;
     //get all the permutations of the list and break at the optimal one
     //RMEEMBER - DON'T ALTER THE ACTUAL LEAF LIST!!
+    std::sort(nodesVector.begin(), nodesVector.end());
     while (next_permutation(nodesVector.begin(), nodesVector.end()))
     {
+        cout << "join0" << endl;
         vector<OperationNode *> currentNodesVector = nodesVector;
         vector<JoinOperationNode *> currentJoinVector;
-        Statistics stats = *statistics;
+        cout << "join1.5" << endl;
+        cout << "join1.6" << endl;
         double currentEstimate = 0.0;
         while (currentNodesVector.size() > 1)
         {
-
+            cout << "join1" << endl;
             //pop off the last two
             OperationNode *node1 = currentNodesVector.back();
             currentNodesVector.pop_back();
             OperationNode *node2 = currentNodesVector.back();
             currentNodesVector.pop_back();
 
-            int outPipeId = std::max(node1->outPipeID, node2->outPipeID) + 1;
             //constructing new JoinNode which inherently updates relNames,numRelations as well
             //populates combined outschema as well
+            Statistics stat = *(node1->statistics);
             JoinOperationNode *joinNode = new JoinOperationNode(node1->statistics, node1, node2);
-
+            cout << "join2" << endl;
             //populate subAndlist
             AndList *subAndList = joinNode->buildSubAndList(boolean, joinNode->outSchema);
             //join and estimate
+
             currentEstimate += joinNode->statistics->Estimate(subAndList, joinNode->relationNames, joinNode->numRelations);
             joinNode->statistics->Apply(subAndList, joinNode->relationNames, joinNode->numRelations);
-
+            cout << "join3" << endl;
             currentNodesVector.push_back((OperationNode *)joinNode);
             currentJoinVector.push_back(joinNode);
         }
@@ -149,15 +153,22 @@ OperationNode::OperationNode(string operationName, Statistics *statistics, Schem
     this->outSchema = outSchema;
     this->outPipeID = pipeId++;
 }
+OperationNode::OperationNode(string operationName, Schema *outSchema)
+{
+    this->operationName = operationName;
+    this->outSchema = outSchema;
+    this->outPipeID = pipeId++;
+}
 std::string OperationNode::getOperationName()
 {
     return operationName;
 }
 
 //AndListBasedOperationNode
-AndListBasedOperationNode::AndListBasedOperationNode(string operationName, Statistics *statistics) : OperationNode(operationName, statistics){
+AndListBasedOperationNode::AndListBasedOperationNode(string operationName) : OperationNode(operationName)
+{
+}
 
-                                                                                                     };
 AndList *AndListBasedOperationNode::buildSubAndList(AndList *boolean, Schema *schema)
 {
     AndList *subAndList;
@@ -218,8 +229,9 @@ bool AndListBasedOperationNode::buildSubOrList(OrList *orList, Schema *schema)
 
 //(leftOperand->code != NAME || leftAttInSchema) && (rightOperand->code != NAME || rightAttInSchema)
 //SelectOperationNode
-SelectOperationNode::SelectOperationNode(Statistics *statistics) : AndListBasedOperationNode("select", statistics)
+SelectOperationNode::SelectOperationNode(Statistics *statistics) : AndListBasedOperationNode("select")
 {
+    this->statistics = statistics;
 }
 bool SelectOperationNode::isValidCondition(ComparisonOp *compOp, Schema *schema)
 {
@@ -239,8 +251,9 @@ void SelectOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 }
 
 //SelectAfterJoinNode
-SelectAfterJoinOperationNode::SelectAfterJoinOperationNode(Statistics *statistics) : AndListBasedOperationNode("selectAfterJoin", statistics)
+SelectAfterJoinOperationNode::SelectAfterJoinOperationNode(Statistics *statistics) : AndListBasedOperationNode("selectAfterJoin")
 {
+    this->statistics = statistics;
 }
 bool SelectAfterJoinOperationNode::isValidCondition(ComparisonOp *compOp, Schema *schema)
 {
@@ -252,6 +265,7 @@ bool SelectAfterJoinOperationNode::isValidCondition(ComparisonOp *compOp, Schema
 }
 void SelectAfterJoinOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 {
+
     // os << "singletonLeaf CNF:" << endl;
     // //cnf.Print();
     // for (int i = 0; i < numRelations; i++)
@@ -261,17 +275,19 @@ void SelectAfterJoinOperationNode::printNodeInfo(std::ostream &os, size_t level)
 }
 
 //SingletonLeafNode
-SingletonLeafNode::SingletonLeafNode(Statistics *statistics, Schema *outSchema, char *relationName, char *aliasName) : OperationNode("leaf", statistics, outSchema)
+SingletonLeafNode::SingletonLeafNode(Statistics *statistics, Schema *outSchema, char *relationName, char *aliasName) : OperationNode("leaf")
 {
+    this->outSchema = outSchema;
+    this->statistics = statistics;
     this->relationNames[0] = relationName;
     this->aliasName = aliasName;
     this->outSchema = outSchema;
     numRelations = 1;
-    this->statistics = statistics;
     estimatedTuples = statistics->getNumTuples(relationNames[0]);
 }
 void SingletonLeafNode::printNodeInfo(std::ostream &os, size_t level) const
 {
+    cout << "ahbdfkajba" << endl;
     os << "singletonLeaf CNF:" << endl;
     //cnf.Print();
     for (int i = 0; i < numRelations; i++)
@@ -281,8 +297,9 @@ void SingletonLeafNode::printNodeInfo(std::ostream &os, size_t level) const
 }
 
 //Join Operation Node
-JoinOperationNode::JoinOperationNode(Statistics *Statistics, OperationNode *node1, OperationNode *node2) : AndListBasedOperationNode("join", statistics)
+JoinOperationNode::JoinOperationNode(Statistics *statistics, OperationNode *node1, OperationNode *node2) : AndListBasedOperationNode("join")
 {
+    this->statistics = statistics;
     leftOperationNode = node1;
     rightOperationNode = node2;
     combineRelNames();

@@ -92,7 +92,7 @@ public:
 class AndListBasedOperationNode : public OperationNode
 {
 public:
-  AndListBasedOperationNode(string operationName, Statistics *statistics);
+  AndListBasedOperationNode(string operationName);
   AndList *buildSubAndList(AndList *boolean, Schema *schema);
   bool buildSubOrList(OrList *orList, Schema *schema);
   virtual bool isValidCondition(ComparisonOp *compOp, Schema *schema) = 0;
@@ -196,6 +196,7 @@ private:
   std::ofstream outStream;
   Statistics *statistics;
   AndList *andList;
+  static int pipeId;
 
 public:
   QueryPlanner(Statistics *statistics, char *outFilePath, AndList *andList)
