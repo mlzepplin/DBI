@@ -99,7 +99,7 @@ void QueryPlanner::planJoins()
 
             //constructing new JoinNode which inherently updates relNames,numRelations as well
             //populates combined outschema as well
-            Statistics stat = *(node1->statistics);
+
             JoinOperationNode *joinNode = new JoinOperationNode(node1->statistics, node1, node2);
             cout << "join2" << endl;
             //populate subAndlist
@@ -169,76 +169,98 @@ AndListBasedOperationNode::AndListBasedOperationNode(string operationName) : Ope
 {
 }
 
-AndList *AndListBasedOperationNode::buildSubAndList(AndList *boolean, Schema *schema)
+AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean, Schema *schema)
 {
-    AndList *subAndList;
-    AndList booleanCopy = *boolean;
+    AndList *subAndList = NULL;
     //adding a dummy node as header to keep
     //previous one step above current from the start
-    subAndList->rightAnd = &booleanCopy;
-    AndList *previous = subAndList;
-    AndList *current = subAndList->rightAnd;
+    AndList *head;
+    head->rightAnd = boolean;
+    AndList *previous = head;
+    AndList *current = head->rightAnd;
 
-    //GOAL:: parse the subAndList and trim all irrelevance
+    //GOAL:: parse the boolean and trim all rrelevance out
+    //and append that relevance to subndList
     while (current != NULL)
     {
-        if (buildSubOrList(current->left, schema))
-        { //let this orlist stay
-            previous = current;
-            current = current->rightAnd;
+        if (isValidOr(current->left, schema))
+        { //if matched, trim it out and add it to the subAndList
+            previous->rightAnd = current->rightAnd;
+            current->rightAnd = subAndList;
+            subAndList = current;
         }
         else
-        { //skip current and trim it out
-            previous->rightAnd = current->rightAnd;
+        { //skip current and let it remain in boolean
+            previous = current;
             current = previous->rightAnd;
         }
     }
     //removing the initial dummy node that was added just to init previous
-    subAndList = subAndList->rightAnd;
+    boolean = head->rightAnd;
     return subAndList;
 }
-
-bool AndListBasedOperationNode::buildSubOrList(OrList *orList, Schema *schema)
+bool AndListBasedOperationNode::isValidOr(OrList *booleanOrList, Schema *schema)
 {
-    OrList *subOrList;
-    subOrList->rightOr = orList;
-    OrList *previous = subOrList;
-    OrList *current = subOrList->rightOr;
+    ComparisonOp *compOp = booleanOrList->left;
 
-    //GOAL:: parse the subOrList and trim all irrelevance
-    bool matchStatus = false;
-    while (current != NULL)
+    while (booleanOrList)
     {
-        //current->left is the comparisonOp
-        if (isValidCondition(current->left, schema))
-        { //let this compOp stay
-            matchStatus = true;
-            previous = current;
-            current = current->rightOr;
-        }
+        if (isValidComparisonOp(compOp, schema))
+            return true;
         else
-        { //skip current and trim it out
-            previous->rightOr = current->rightOr;
-            current = previous->rightOr;
-        }
+            booleanOrList = booleanOrList->rightOr;
     }
-    //removing the initial dummy node that was added just to init previous
-    orList = subOrList->rightOr;
-    return matchStatus;
+    return false;
 }
+
+// bool AndListBasedOperationNode::buildSubOrList(OrList *orList, Schema *schema)
+// {
+//     OrList *subOrList;
+//     subOrList->rightOr = orList;
+//     OrList *previous = subOrList;
+//     OrList *current = subOrList->rightOr;
+
+//     //GOAL:: parse the subOrList and trim all irrelevance
+//     bool matchStatus = false;
+//     while (current != NULL)
+//     {
+//         //current->left is the comparisonOp
+//         if (isValidOr(current->left, schema))
+//         { //let this compOp stay
+//             matchStatus = true;
+//             previous = current;
+//             current = current->rightOr;
+//         }
+//         else
+//         { //skip current and trim it out
+//             previous->rightOr = current->rightOr;
+//             current = previous->rightOr;
+//         }
+//     }
+//     //removing the initial dummy node that was added just to init previous
+//     orList = subOrList->rightOr;
+//     return matchStatus;
+// }
 
 //(leftOperand->code != NAME || leftAttInSchema) && (rightOperand->code != NAME || rightAttInSchema)
 //SelectOperationNode
+
 SelectOperationNode::SelectOperationNode(Statistics *statistics) : AndListBasedOperationNode("select")
 {
     this->statistics = statistics;
 }
-bool SelectOperationNode::isValidCondition(ComparisonOp *compOp, Schema *schema)
+bool SelectOperationNode::isValidComparisonOp(ComparisonOp *compOp, Schema *schema)
 {
 
     Operand *leftOperand = compOp->left;
     Operand *rightOperand = compOp->right;
-    return (leftOperand->code == NAME && rightOperand->code != NAME && (schema->Find(leftOperand->value) != -1));
+    //return (leftOperand->code == NAME && rightOperand->code != NAME && (schema->Find(leftOperand->value) != -1));
+    bool leftAttInSchema = (schema->Find(leftOperand->value) != -1) ? true : false;
+    bool rightAttInSchema = (schema->Find(rightOperand->value) != -1) ? true : false;
+    if (rightOperand->code != NAME)
+        return leftAttInSchema;
+
+    return compOp->code != EQUALS;
 }
 void SelectOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 {
@@ -251,28 +273,28 @@ void SelectOperationNode::printNodeInfo(std::ostream &os, size_t level) const
 }
 
 //SelectAfterJoinNode
-SelectAfterJoinOperationNode::SelectAfterJoinOperationNode(Statistics *statistics) : AndListBasedOperationNode("selectAfterJoin")
-{
-    this->statistics = statistics;
-}
-bool SelectAfterJoinOperationNode::isValidCondition(ComparisonOp *compOp, Schema *schema)
-{
-    Operand *leftOperand = compOp->left;
-    Operand *rightOperand = compOp->right;
-    bool leftAttInSchema = (schema->Find(leftOperand->value) != -1) ? true : false;
-    bool rightAttInSchema = (schema->Find(rightOperand->value) != -1) ? true : false;
-    return (leftOperand->code == NAME && rightOperand->code == NAME && (compOp->code != EQUALS) && leftAttInSchema && rightAttInSchema);
-}
-void SelectAfterJoinOperationNode::printNodeInfo(std::ostream &os, size_t level) const
-{
+// SelectAfterJoinOperationNode::SelectAfterJoinOperationNode(Statistics *statistics) : AndListBasedOperationNode("selectAfterJoin")
+// {
+//     this->statistics = statistics;
+// }
+// bool SelectAfterJoinOperationNode::isValidCondition(ComparisonOp *compOp, Schema *schema)
+// {
+//     Operand *leftOperand = compOp->left;
+//     Operand *rightOperand = compOp->right;
+//     bool leftAttInSchema = (schema->Find(leftOperand->value) != -1) ? true : false;
+//     bool rightAttInSchema = (schema->Find(rightOperand->value) != -1) ? true : false;
+//     return (leftOperand->code == NAME && rightOperand->code == NAME && (compOp->code != EQUALS) && leftAttInSchema && rightAttInSchema);
+// }
+// void SelectAfterJoinOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+// {
 
-    // os << "singletonLeaf CNF:" << endl;
-    // //cnf.Print();
-    // for (int i = 0; i < numRelations; i++)
-    //     os << relationNames[i] << ", ";
-    // os << endl;
-    // os << "Estimate = " << estimatedTuples << endl;
-}
+//     // os << "singletonLeaf CNF:" << endl;
+//     // //cnf.Print();
+//     // for (int i = 0; i < numRelations; i++)
+//     //     os << relationNames[i] << ", ";
+//     // os << endl;
+//     // os << "Estimate = " << estimatedTuples << endl;
+// }
 
 //SingletonLeafNode
 SingletonLeafNode::SingletonLeafNode(Statistics *statistics, Schema *outSchema, char *relationName, char *aliasName) : OperationNode("leaf")
@@ -305,7 +327,7 @@ JoinOperationNode::JoinOperationNode(Statistics *statistics, OperationNode *node
     combineRelNames();
     populateJoinOutSchema();
 }
-bool JoinOperationNode::isValidCondition(ComparisonOp *compOp, Schema *schema)
+bool JoinOperationNode::isValidComparisonOp(ComparisonOp *compOp, Schema *schema)
 {
     Operand *leftOperand = compOp->left;
     Operand *rightOperand = compOp->right;

@@ -93,10 +93,9 @@ class AndListBasedOperationNode : public OperationNode
 {
 public:
   AndListBasedOperationNode(string operationName);
-  AndList *buildSubAndList(AndList *boolean, Schema *schema);
-  bool buildSubOrList(OrList *orList, Schema *schema);
-  virtual bool isValidCondition(ComparisonOp *compOp, Schema *schema) = 0;
-  virtual void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const = 0;
+  AndList *buildSubAndList(AndList *&boolean, Schema *schema);
+  bool isValidOr(OrList *orList, Schema *schema);
+  virtual bool isValidComparisonOp(ComparisonOp *compOp, Schema *schema) = 0;
 };
 
 class JoinOperationNode : public AndListBasedOperationNode
@@ -111,7 +110,7 @@ public:
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
   void combineRelNames();
   void populateJoinOutSchema();
-  bool isValidCondition(ComparisonOp *compOp, Schema *schema);
+  bool isValidComparisonOp(ComparisonOp *compOp, Schema *schema);
 
   CNF cnf;
   Record literal;
@@ -121,16 +120,16 @@ class SelectOperationNode : public AndListBasedOperationNode
 {
 public:
   SelectOperationNode(Statistics *statistics);
-  bool isValidCondition(ComparisonOp *compOp, Schema *schema);
+  bool isValidComparisonOp(ComparisonOp *compOp, Schema *schema);
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
 };
-class SelectAfterJoinOperationNode : public AndListBasedOperationNode
-{
-public:
-  SelectAfterJoinOperationNode(Statistics *statistics);
-  bool isValidCondition(ComparisonOp *compOp, Schema *schema);
-  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
-};
+// class SelectAfterJoinOperationNode : public AndListBasedOperationNode
+// {
+// public:
+//   SelectAfterJoinOperationNode(Statistics *statistics);
+//   bool isValidCondition(ComparisonOp *compOp, Schema *schema);
+//   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) const;
+// };
 class ProjectOperationNode : public OperationNode
 {
 
