@@ -174,10 +174,10 @@ AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean, Schema *s
     AndList *subAndList = NULL;
     //adding a dummy node as header to keep
     //previous one step above current from the start
-    AndList *head;
-    head->rightAnd = boolean;
-    AndList *previous = head;
-    AndList *current = head->rightAnd;
+    AndList head;
+    head.rightAnd = boolean;
+    AndList *previous = &head;
+    AndList *current = head.rightAnd;
 
     //GOAL:: parse the boolean and trim all rrelevance out
     //and append that relevance to subndList
@@ -196,7 +196,7 @@ AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean, Schema *s
         }
     }
     //removing the initial dummy node that was added just to init previous
-    boolean = head->rightAnd;
+    boolean = head.rightAnd;
     return subAndList;
 }
 bool AndListBasedOperationNode::isValidOr(OrList *booleanOrList, Schema *schema)

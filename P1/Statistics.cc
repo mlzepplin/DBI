@@ -22,7 +22,7 @@ Statistics::Statistics(Statistics &copyMe)
         {
             string attName = attItr->first;
             int numDistinct = attItr->second;
-            relationInfo.attributeMap.insert(pair<std::string, int>(attName, numDistinct));
+            relationInfo.attributeMap.insert(std::make_pair(attName, numDistinct));
         }
 
         relationMap->insert(pair<std::string, RelationInfo>(relName, relationInfo));
