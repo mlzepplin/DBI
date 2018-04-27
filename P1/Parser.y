@@ -20,6 +20,11 @@
 	int distinctAtts; // 1 if there is a DISTINCT in a non-aggregate query 
 	int distinctFunc;  // 1 if there is a DISTINCT in an aggregate query
 
+	char *newtable;
+	char *newfile;
+	char *oldtable;
+	char *outputmode;
+
 %}
 
 // this stores all of the types returned by production rules
@@ -50,6 +55,21 @@
 %token AS
 %token AND
 %token OR
+
+
+%token CREATE
+%token TABLE
+%token HEAP
+%token SORTED
+%token ON
+%token INSERT
+%token INTO
+%token DROP
+%token SET
+%token OUTPUT
+
+
+
 
 %type <myOrList> OrList
 %type <myAndList> AndList
@@ -86,7 +106,39 @@ SQL: SELECT WhatIWant FROM Tables WHERE AndList
 	tables = $4;
 	boolean = $6;	
 	groupingAtts = $9;
-};
+}
+
+| CREATE TABLE Name '(' NewAtts ')' AS HEAP 
+{
+	newtable = $3;
+	newattrs = $5;
+    
+}
+
+| CREATE TABLE Name '(' NewAtts ')' AS SORTED ON SortAtts 
+{
+	newtable = $3;
+	newattrs = $5;
+	sortattrs = $10; 
+}
+
+| INSERT String INTO Name 
+{
+	newfile = $2;
+	oldtable = $4;
+}
+
+| DROP TABLE Name 
+{
+	oldtable = $3;
+}
+
+| SET OUTPUT Name 
+{
+	outputmode = $3;
+}
+;
+
 
 WhatIWant: Function ',' Atts 
 {
@@ -124,6 +176,46 @@ Function: SUM '(' CompoundExp ')'
 {
 	distinctFunc = 1;
 	finalFunction = $4;
+};
+
+NewAtts: Name Name
+{
+	$$ = (struct AttrList *) malloc (sizeof (struct AttrList));
+	$$->name = $1;
+	if(strcmp($2,"INTEGER")==0)
+		$$->type = 0;
+	else if(strcmp($2,"DOUBLE")==0)
+		$$->type = 1;
+	else if(strcmp($2,"STRING")==0)
+		$$->type = 2;
+	$$->next = NULL;
+}
+
+| Name Name ',' NewAtts
+{
+	$$ = (struct AttrList *) malloc (sizeof (struct AttrList));
+	$$->name = $1;
+	if(strcmp($2,"INTEGER")==0)
+		$$->type = 0;
+	else if(strcmp($2,"DOUBLE")==0)
+		$$->type = 1;
+	else if(strcmp($2,"STRING")==0)
+		$$->type = 2;
+	$$->next = $4;
+};
+
+SortAtts: Name
+{
+	$$ = (struct NameList *) malloc (sizeof (struct NameList));
+	$$->name = $1;
+	$$->next = NULL;
+}
+
+| Name ',' SortAtts
+{
+	$$ = (struct NameList *) malloc (sizeof (struct NameList));
+	$$->name = $1;
+	$$->next = $3;
 };
 
 Atts: Name
