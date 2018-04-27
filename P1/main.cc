@@ -49,7 +49,22 @@ int main()
 	cout << "distatts" << distinctAtts << endl;
 
 	Statistics st;
-	st.Read("Statistics.txt");
+	//st.Read("Statistics.txt");
+	char *relName[] = {"part", "supplier", "partsupp"};
+
+	st.AddRel(relName[0], 1500000);
+	st.AddAtt(relName[0], "p_partkey", 150000);
+
+	st.AddRel(relName[1], 150000);
+	st.AddAtt(relName[1], "s_suppkey", 150000);
+	st.AddAtt(relName[1], "s_acctbal", 25);
+
+	st.AddRel(relName[2], 25);
+	st.AddAtt(relName[2], "ps_partkey", 25);
+	st.AddAtt(relName[2], "ps_suppkey", 150000);
+
 	char *outFilePath = "./QueryPlannerOutput.txt";
+
 	QueryPlanner queryPlanner(&st, outFilePath, boolean);
+	queryPlanner.planOperationOrder();
 }
