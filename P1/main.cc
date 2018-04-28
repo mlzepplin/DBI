@@ -13,13 +13,19 @@ int yyparse(void); // defined in y.tab.c
 int main()
 {
 	//cout << finalFunction->code;
-	extern FuncOperator *finalFunction;
-	extern TableList *tables;
-	extern AndList *boolean;
-	extern NameList *groupingAtts;
-	extern NameList *attsToSelect;
+	extern struct FuncOperator *finalFunction;
+	extern struct TableList *tables;
+	extern struct AndList *boolean;
+	extern struct NameList *groupingAtts;
+	extern struct NameList *attsToSelect;
 	extern int distinctAtts;
 	extern int distinctFunc;
+
+	extern char *newtable;
+	extern char *oldtable;
+	extern char *newfile;
+	extern char *deoutput;
+	extern struct AttrList *newattrs;
 
 	yyparse();
 	cout << "tables" << endl;
