@@ -212,6 +212,7 @@ public:
 
   void performSum();
   void performProject();
+  void deepCopyAndList(AndList *&populateMe, AndList *copyMe);
 
   void print(std::ostream &os = std::cout) const;
 };

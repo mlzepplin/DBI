@@ -66,7 +66,49 @@ void QueryPlanner::performSum()
         root = new SumOperationNode(finalFunction, root);
     }
 }
+void QueryPlanner::deepCopyAndList(AndList *&populateMe, AndList *copyMe)
+{
+    //note every pointer movement of populateMe, also update the caller of populateMe
+    //exactly the same way, but it's not the same as for copyMe
+    AndList *head = populateMe;
+    // populateMe = new AndList();
+    //deep copy the whole AndList
+    while (copyMe != NULL)
+    {
+        populateMe = new AndList();
+        OrList *copyOr = copyMe->left;
+        //deep copy the whole OrList
+        while (copyOr != NULL)
+        {
+            populateMe->left = new OrList();             // OrList *popOr = populateMe->left;
+            populateMe->left->left = new ComparisonOp(); // ComparisonOp *popCompOp = populateMe->left->left;
 
+            ComparisonOp *copyCompOp = copyOr->left;
+
+            //deepCopy the whole Comparison Op
+            populateMe->left->left->code = copyCompOp->code;
+
+            //deep Copying left operand
+            populateMe->left->left->left = new Operand();
+            populateMe->left->left->left->code = copyCompOp->left->code;
+            populateMe->left->left->left->value = copyCompOp->left->value;
+
+            //deepCopying right Operand
+            populateMe->left->left->right = new Operand();
+            populateMe->left->left->right->code = copyCompOp->right->code;
+            populateMe->left->left->right->value = copyCompOp->right->value;
+
+            populateMe->left->rightOr = NULL;
+            populateMe->left = populateMe->left->rightOr;
+            copyOr = copyOr->rightOr;
+        }
+        populateMe->rightAnd = NULL;
+        populateMe = populateMe->rightAnd;
+
+        copyMe = copyMe->rightAnd;
+    }
+    populateMe = head;
+}
 void QueryPlanner::planJoins()
 {
 
@@ -76,10 +118,9 @@ void QueryPlanner::planJoins()
     vector<JoinOperationNode *> optimalJoinVector;
     vector<OperationNode *>::iterator nodesVecIter;
     double optimalEstimate = DBL_MAX;
-    AndList *tempAndList = boolean;
+
     //get all the permutations of the list and break at the optimal one
     //RMEEMBER - DON'T ALTER THE ACTUAL LEAF LIST!!
-
     std::sort(nodesVector.begin(), nodesVector.end());
     while (next_permutation(nodesVector.begin(), nodesVector.end()))
     {
@@ -87,6 +128,8 @@ void QueryPlanner::planJoins()
         vector<JoinOperationNode *> currentJoinVector;
         double currentEstimate = 0.0;
         Statistics statsCopy = *statistics; //making a deep copy
+        AndList *booleanCopy = NULL;
+        deepCopyAndList(booleanCopy, boolean);
         while (currentNodesVector.size() > 1)
         {
             cout << "join :" << endl;
@@ -101,7 +144,7 @@ void QueryPlanner::planJoins()
 
             JoinOperationNode *joinNode = new JoinOperationNode(&statsCopy, node1, node2);
             //populate subAndlist
-            AndList *subAndList = joinNode->buildSubAndList(boolean);
+            AndList *subAndList = joinNode->buildSubAndList(booleanCopy);
             //join and estimate
 
             if (subAndList == NULL)
