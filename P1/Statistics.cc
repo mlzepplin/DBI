@@ -11,7 +11,7 @@ Statistics::Statistics()
 
 Statistics::Statistics(Statistics &copyMe)
 { //copy constructor, creating a deep copy
-
+    relationMap = new unordered_map<string, RelationInfo>();
     for (unordered_map<string, RelationInfo>::iterator relItr = copyMe.relationMap->begin(); relItr != copyMe.relationMap->end(); relItr++)
     {
         string relName = relItr->first;

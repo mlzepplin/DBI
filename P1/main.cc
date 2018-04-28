@@ -21,14 +21,14 @@ int main()
 	extern int distinctAtts;
 	extern int distinctFunc;
 
-	extern char *newtable;
-	extern char *oldtable;
-	extern char *newfile;
-	extern char *deoutput;
-	extern struct AttrList *newattrs;
+	// extern char *newtable;
+	// extern char *oldtable;
+	// extern char *newfile;
+	// extern char *outputmode;
+	// extern struct AttrList *newattrs;
 
 	yyparse();
-	cout << "tables" << endl;
+	// cout << "tables" << endl;
 	// while (tables != NULL)
 	// {
 	// 	cout << tables->tableName;
@@ -51,8 +51,8 @@ int main()
 	// 	cout << endl;
 	// }
 
-	cout << "distfunc" << distinctFunc << endl;
-	cout << "distatts" << distinctAtts << endl;
+	// cout << "distfunc" << distinctFunc << endl;
+	// cout << "distatts" << distinctAtts << endl;
 
 	Statistics *st = new Statistics();
 	//st.Read("Statistics.txt");
@@ -68,6 +68,7 @@ int main()
 	st->AddRel(relName[2], 25);
 	st->AddAtt(relName[2], "ps_partkey", 25);
 	st->AddAtt(relName[2], "ps_suppkey", 150000);
+	st->AddAtt(relName[2], "ps_supplycost", 150000);
 
 	char *outFilePath = "./QueryPlannerOutput.txt";
 

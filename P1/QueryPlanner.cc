@@ -15,7 +15,7 @@ void QueryPlanner::initLeaves()
         Schema *outSchema = new Schema(catalogPath, tables->tableName, tables->aliasAs);
         OperationNode *currentNode = new SingletonLeafNode(statistics, outSchema, tables->tableName, tables->aliasAs);
         nodesVector.push_back(currentNode);
-        currentNode->printNodeInfo();
+        //currentNode->printNodeInfo();
         tables = tables->next;
     }
 }
@@ -79,18 +79,17 @@ void QueryPlanner::planJoins()
     AndList *tempAndList = boolean;
     //get all the permutations of the list and break at the optimal one
     //RMEEMBER - DON'T ALTER THE ACTUAL LEAF LIST!!
+
     std::sort(nodesVector.begin(), nodesVector.end());
     while (next_permutation(nodesVector.begin(), nodesVector.end()))
     {
-        cout << "join0" << endl;
         vector<OperationNode *> currentNodesVector = nodesVector;
         vector<JoinOperationNode *> currentJoinVector;
-        cout << "join1.5" << endl;
-        cout << "join1.6" << endl;
         double currentEstimate = 0.0;
+        Statistics statsCopy = *statistics; //making a deep copy
         while (currentNodesVector.size() > 1)
         {
-            cout << "join1" << endl;
+            cout << "join :" << endl;
             //pop off the last two
             OperationNode *node1 = currentNodesVector.back();
             currentNodesVector.pop_back();
@@ -100,12 +99,11 @@ void QueryPlanner::planJoins()
             //constructing new JoinNode which inherently updates relNames,numRelations as well
             //populates combined outschema as well
 
-            JoinOperationNode *joinNode = new JoinOperationNode(node1->statistics, node1, node2);
-            cout << "join2" << endl;
+            JoinOperationNode *joinNode = new JoinOperationNode(&statsCopy, node1, node2);
             //populate subAndlist
             AndList *subAndList = joinNode->buildSubAndList(boolean);
             //join and estimate
-            cout << "join2.4" << endl;
+
             if (subAndList == NULL)
                 cout << "sun null" << endl;
             currentEstimate += joinNode->statistics->Estimate(subAndList, joinNode->relationNames, joinNode->numRelations);
@@ -186,7 +184,7 @@ AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean)
     //and append that relevance to subndList
     while (current != NULL)
     {
-        cout << "here" << endl;
+
         if (isValidOr(current->left))
         { //if matched, trim it out and add it to the subAndList
             cout << "valid or" << endl;
@@ -319,7 +317,7 @@ SingletonLeafNode::SingletonLeafNode(Statistics *statistics, Schema *outSchema, 
 }
 void SingletonLeafNode::printNodeInfo(std::ostream &os, size_t level) const
 {
-    cout << "ahbdfkajba" << endl;
+
     os << "singletonLeaf CNF:" << endl;
     //cnf.Print();
     for (int i = 0; i < numRelations; i++)
@@ -344,15 +342,14 @@ bool JoinOperationNode::isValidComparisonOp(ComparisonOp *compOp)
     cout << "left operator: " << leftOperand->value << endl;
     cout << "right operator: " << rightOperand->value << endl;
     cout << "code: " << compOp->code << endl;
-    cout << outSchema->GetNumAtts();
+    cout << "NumAtts : " << outSchema->GetNumAtts() << endl;
 
     bool leftAttInSchema = (outSchema->Find(leftOperand->value) != -1) ? true : false;
     bool rightAttInSchema = (outSchema->Find(rightOperand->value) != -1) ? true : false;
     cout << "schema l " << leftAttInSchema << endl;
     cout << "schema r " << rightAttInSchema << endl;
-    //&& leftAttInSchema && rightAttInSchema
 
-    return (leftOperand->code == NAME && rightOperand->code == NAME && (compOp->code == EQUALS));
+    return (leftOperand->code == NAME && rightOperand->code == NAME && (compOp->code == EQUALS) && leftAttInSchema && rightAttInSchema);
 }
 void JoinOperationNode::populateJoinOutSchema()
 {
