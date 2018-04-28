@@ -103,10 +103,13 @@ void QueryPlanner::planJoins()
             JoinOperationNode *joinNode = new JoinOperationNode(node1->statistics, node1, node2);
             cout << "join2" << endl;
             //populate subAndlist
-            AndList *subAndList = joinNode->buildSubAndList(boolean, joinNode->outSchema);
+            AndList *subAndList = joinNode->buildSubAndList(boolean);
             //join and estimate
-
+            cout << "join2.4" << endl;
+            if (subAndList == NULL)
+                cout << "sun null" << endl;
             currentEstimate += joinNode->statistics->Estimate(subAndList, joinNode->relationNames, joinNode->numRelations);
+            cout << "join 2.5" << endl;
             joinNode->statistics->Apply(subAndList, joinNode->relationNames, joinNode->numRelations);
             cout << "join3" << endl;
             currentNodesVector.push_back((OperationNode *)joinNode);
@@ -169,7 +172,7 @@ AndListBasedOperationNode::AndListBasedOperationNode(string operationName) : Ope
 {
 }
 
-AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean, Schema *schema)
+AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean)
 {
     AndList *subAndList = NULL;
     //adding a dummy node as header to keep
@@ -183,11 +186,14 @@ AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean, Schema *s
     //and append that relevance to subndList
     while (current != NULL)
     {
-        if (isValidOr(current->left, schema))
+        cout << "here" << endl;
+        if (isValidOr(current->left))
         { //if matched, trim it out and add it to the subAndList
+            cout << "valid or" << endl;
             previous->rightAnd = current->rightAnd;
             current->rightAnd = subAndList;
             subAndList = current;
+            current = current->rightAnd;
         }
         else
         { //skip current and let it remain in boolean
@@ -199,14 +205,18 @@ AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean, Schema *s
     boolean = head.rightAnd;
     return subAndList;
 }
-bool AndListBasedOperationNode::isValidOr(OrList *booleanOrList, Schema *schema)
+bool AndListBasedOperationNode::isValidOr(OrList *booleanOrList)
 {
     ComparisonOp *compOp = booleanOrList->left;
 
     while (booleanOrList)
     {
-        if (isValidComparisonOp(compOp, schema))
+        //cout << "in is or while" << endl;
+        if (isValidComparisonOp(compOp))
+        {
+            cout << "valid comp op " << endl;
             return true;
+        }
         else
             booleanOrList = booleanOrList->rightOr;
     }
@@ -249,14 +259,14 @@ SelectOperationNode::SelectOperationNode(Statistics *statistics) : AndListBasedO
 {
     this->statistics = statistics;
 }
-bool SelectOperationNode::isValidComparisonOp(ComparisonOp *compOp, Schema *schema)
+bool SelectOperationNode::isValidComparisonOp(ComparisonOp *compOp)
 {
 
     Operand *leftOperand = compOp->left;
     Operand *rightOperand = compOp->right;
     //return (leftOperand->code == NAME && rightOperand->code != NAME && (schema->Find(leftOperand->value) != -1));
-    bool leftAttInSchema = (schema->Find(leftOperand->value) != -1) ? true : false;
-    bool rightAttInSchema = (schema->Find(rightOperand->value) != -1) ? true : false;
+    bool leftAttInSchema = (outSchema->Find(leftOperand->value) != -1) ? true : false;
+    bool rightAttInSchema = (outSchema->Find(rightOperand->value) != -1) ? true : false;
     if (rightOperand->code != NAME)
         return leftAttInSchema;
 
@@ -327,15 +337,22 @@ JoinOperationNode::JoinOperationNode(Statistics *statistics, OperationNode *node
     combineRelNames();
     populateJoinOutSchema();
 }
-bool JoinOperationNode::isValidComparisonOp(ComparisonOp *compOp, Schema *schema)
+bool JoinOperationNode::isValidComparisonOp(ComparisonOp *compOp)
 {
     Operand *leftOperand = compOp->left;
     Operand *rightOperand = compOp->right;
+    cout << "left operator: " << leftOperand->value << endl;
+    cout << "right operator: " << rightOperand->value << endl;
+    cout << "code: " << compOp->code << endl;
+    cout << outSchema->GetNumAtts();
 
-    bool leftAttInSchema = (schema->Find(leftOperand->value) != -1) ? true : false;
-    bool rightAttInSchema = (schema->Find(rightOperand->value) != -1) ? true : false;
+    bool leftAttInSchema = (outSchema->Find(leftOperand->value) != -1) ? true : false;
+    bool rightAttInSchema = (outSchema->Find(rightOperand->value) != -1) ? true : false;
+    cout << "schema l " << leftAttInSchema << endl;
+    cout << "schema r " << rightAttInSchema << endl;
+    //&& leftAttInSchema && rightAttInSchema
 
-    return (leftOperand->code == NAME && rightOperand->code == NAME && (compOp->code == EQUALS) && leftAttInSchema && rightAttInSchema);
+    return (leftOperand->code == NAME && rightOperand->code == NAME && (compOp->code == EQUALS));
 }
 void JoinOperationNode::populateJoinOutSchema()
 {
@@ -344,7 +361,6 @@ void JoinOperationNode::populateJoinOutSchema()
     int leftNumAtts = leftOperationNode->outSchema->GetNumAtts();
     int rightNumAtts = rightOperationNode->outSchema->GetNumAtts();
     int numTotalAtts = leftNumAtts + rightNumAtts;
-
     Attribute *joinAttList = new Attribute[numTotalAtts];
     Attribute *leftAttList = leftOperationNode->outSchema->GetAtts();
     Attribute *rightAttList = rightOperationNode->outSchema->GetAtts();
@@ -355,8 +371,9 @@ void JoinOperationNode::populateJoinOutSchema()
     for (int j = 0; i < numTotalAtts; i++, j++)
         joinAttList[i] = rightAttList[j];
 
-    Schema outSchema(catalogPath, numTotalAtts, joinAttList);
-    this->outSchema = &outSchema;
+    //Schema outSchema(catalogPath, numTotalAtts, joinAttList);
+    this->outSchema = new Schema(catalogPath, numTotalAtts, joinAttList);
+    cout << "numatts koin " << this->outSchema->GetNumAtts() << endl;
 }
 
 void JoinOperationNode::combineRelNames()
@@ -370,9 +387,9 @@ void JoinOperationNode::combineRelNames()
     {
         relationNames[i] = leftOperationNode->relationNames[i];
     }
-    for (int i = numLeft; i < numRelations; i++)
+    for (int i = numLeft, j = 0; i < numRelations; i++, j++)
     {
-        relationNames[i] = rightOperationNode->relationNames[i];
+        relationNames[i] = rightOperationNode->relationNames[j];
     }
 }
 
