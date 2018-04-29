@@ -205,6 +205,12 @@ public:
     this->andList = andList;
     outStream.open(outFilePath);
   }
+
+  QueryPlanner(Statistics *statistics)
+  {
+    this->statistics = statistics;
+  }
+
   void initLeaves();
   void planJoins();
   void planOperationOrder();
