@@ -8,9 +8,9 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/P1/test.out",
+            "program": "${workspaceFolder}/P1/main",
             "args": [
-                "5"
+                ""
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/P1/",

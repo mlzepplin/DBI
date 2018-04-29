@@ -103,11 +103,11 @@ struct AndList
         struct AndList *rightAnd;
 };
 
-struct AttrList
+struct AttributeList
 {
-        char *name;
-        int type;
-        struct AttrList *next;
+        char *attName;
+        int attType;
+        struct AttributeList *next;
 };
 
 #endif
