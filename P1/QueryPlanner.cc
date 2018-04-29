@@ -116,10 +116,9 @@ bool cmp(OperationNode *&a, OperationNode *&b)
 
 void QueryPlanner::planJoins()
 {
-    //steps
-    vector<OperationNode *> optimalNodesVector;
-    //required for printing purposes
+
     vector<OperationNode *>::iterator nodesVecIter;
+    //required for printing purposes
     vector<JoinOperationNode *> joinVector;
     double estimate = 0.0;
     Statistics statsCopy = *statistics; //making a deep copy
@@ -218,7 +217,6 @@ AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean)
 
         if (isValidOr(current->left))
         { //if matched, trim it out and add it to the subAndList
-            cout << "valid or" << endl;
             previous->rightAnd = current->rightAnd;
             current->rightAnd = subAndList;
             subAndList = current;
@@ -243,7 +241,6 @@ bool AndListBasedOperationNode::isValidOr(OrList *booleanOrList)
         //cout << "in is or while" << endl;
         if (isValidComparisonOp(compOp))
         {
-            cout << "valid comp op " << endl;
             return true;
         }
         else
@@ -257,10 +254,10 @@ bool AndListBasedOperationNode::isValidOr(OrList *booleanOrList)
 //############################################
 SelectOperationNode::SelectOperationNode(Statistics *&statistics, Schema *outSchema, char *relationName, char *aliasName) : AndListBasedOperationNode("select")
 {
-    // this->outSchema = node->outSchema;
     this->statistics = statistics;
     this->relationNames[0] = relationName;
     this->aliasName = aliasName;
+    this->outSchema = outSchema;
     numRelations = 1;
     numTuples = statistics->getNumTuplesOfRelation(relationNames[0]);
     estimatedTuples = numTuples;
@@ -326,7 +323,7 @@ void JoinOperationNode::populateJoinOutSchema()
 
     //Schema outSchema(catalogPath, numTotalAtts, joinAttList);
     this->outSchema = new Schema(catalogPath, numTotalAtts, joinAttList);
-    cout << "numatts koin " << this->outSchema->GetNumAtts() << endl;
+    // cout << "numatts join " << this->outSchema->GetNumAtts() << endl;
 }
 
 void JoinOperationNode::combineRelNames()
