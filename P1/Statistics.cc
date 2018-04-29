@@ -289,6 +289,23 @@ string Statistics::getRelationOfAtt(string attName, char *relNames[], int numToJ
     cerr << "attribute: " << attName << "- cannot be found in relationMap" << endl;
     exit(1);
 }
+int Statistics::getNumTuplesOfRelation(char *relName)
+{
+    //assumes that attribute does exist in atleast one relation
+    unordered_map<string, RelationInfo>::iterator relMapIter;
+    int numTuples = 0;
+    for (relMapIter = relationMap->begin(); relMapIter != relationMap->end(); relMapIter++)
+    {
+        unordered_set<string> tokens = tokeniseKeyToSet(relMapIter->first);
+        if (tokens.find(relName) != tokens.end())
+        {
+            numTuples = relMapIter->second.numTuples;
+            break;
+        }
+    }
+
+    return numTuples;
+}
 
 int Statistics::getNumTuples(string attName, char *relNames[], int numToJoin, int &numDistincts)
 {
@@ -368,22 +385,6 @@ unordered_set<string> Statistics::validateJoin(struct AndList *parseTree, char *
             matchedRelNamesSet.insert(relNames[i]);
 
         return matchedRelNamesSet;
-        // if (keyFound)
-        // {
-        //     vector<string> tokens = tokeniseKeyToVec(key);
-
-        //     unordered_set<string> tokensSet(tokens.begin(), tokens.end());
-        //     // for (int i = 0; i < tokens.size(); i++)
-        //     //     tokensSet.insert(tokens[i]);
-        //     for (int i = 1; i < numToJoin; i++)
-        //     {
-        //         if (tokensSet.find(relNames[i]) == tokensSet.end()){
-
-        //         }
-        //     }
-        // }
-        // else
-        //     return matchedRelNamesSet; //i.e. return empty
     }
     struct AndList *currentAnd = parseTree;
     struct OrList *currentOr = currentAnd->left;

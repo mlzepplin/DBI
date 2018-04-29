@@ -40,6 +40,7 @@ class Statistics
 	string getRelationOfAtt(string attName, char *relNames[], int numToJoin);
 	vector<string> tokeniseKeyToVec(string input);
 	unordered_set<string> tokeniseKeyToSet(string input);
+	int getNumTuplesOfRelation(char *relName);
 
 	//checks if the join set-subset conditions match, if all the attributes present in parseTree
 	//are also present in some relation from relNames

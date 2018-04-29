@@ -7,13 +7,12 @@ char *catalogPath = "./catalog";
 void QueryPlanner::initLeaves()
 {
     // statistics->Read(inFilePath);
-
     //driver for testing: used when the stats object is already populated from text file
     while (tables != NULL)
     {
         statistics->CopyRel(tables->tableName, tables->aliasAs);
         Schema *outSchema = new Schema(catalogPath, tables->tableName, tables->aliasAs);
-        OperationNode *currentNode = new SingletonLeafNode(statistics, outSchema, tables->tableName, tables->aliasAs);
+        OperationNode *currentNode = new SelectOperationNode(statistics, outSchema, tables->tableName, tables->aliasAs);
         nodesVector.push_back(currentNode);
         //currentNode->printNodeInfo();
         tables = tables->next;
@@ -37,7 +36,7 @@ void QueryPlanner::printOperationOrder()
         else if (nodeType == "leaf")
         {
 
-            ((SingletonLeafNode *)nodesVector[i])->printNodeInfo(outStream, 0);
+            ((SelectOperationNode *)nodesVector[i])->printNodeInfo(outStream, 0);
         }
         else
             ;
@@ -66,6 +65,7 @@ void QueryPlanner::performSum()
         root = new SumOperationNode(finalFunction, root);
     }
 }
+
 void QueryPlanner::deepCopyAndList(AndList *&populateMe, AndList *copyMe)
 {
     //note every pointer movement of populateMe, also update the caller of populateMe
@@ -109,63 +109,47 @@ void QueryPlanner::deepCopyAndList(AndList *&populateMe, AndList *copyMe)
     }
     populateMe = head;
 }
+bool cmp(OperationNode *&a, OperationNode *&b)
+{
+    return a->getNumTuples() > b->getNumTuples();
+}
+
 void QueryPlanner::planJoins()
 {
-
     //steps
     vector<OperationNode *> optimalNodesVector;
     //required for printing purposes
-    vector<JoinOperationNode *> optimalJoinVector;
     vector<OperationNode *>::iterator nodesVecIter;
-    double optimalEstimate = DBL_MAX;
+    vector<JoinOperationNode *> joinVector;
+    double estimate = 0.0;
+    Statistics statsCopy = *statistics; //making a deep copy
 
-    //get all the permutations of the list and break at the optimal one
-    //RMEEMBER - DON'T ALTER THE ACTUAL LEAF LIST!!
-    std::sort(nodesVector.begin(), nodesVector.end());
-    while (next_permutation(nodesVector.begin(), nodesVector.end()))
+    //sort in decending order on numTuples
+    std::sort(nodesVector.begin(), nodesVector.end(), cmp);
+
+    while (nodesVector.size() > 1)
     {
-        vector<OperationNode *> currentNodesVector = nodesVector;
-        vector<JoinOperationNode *> currentJoinVector;
-        double currentEstimate = 0.0;
-        Statistics statsCopy = *statistics; //making a deep copy
-        AndList *booleanCopy = NULL;
-        deepCopyAndList(booleanCopy, boolean);
-        while (currentNodesVector.size() > 1)
-        {
-            cout << "join :" << endl;
-            //pop off the last two
-            OperationNode *node1 = currentNodesVector.back();
-            currentNodesVector.pop_back();
-            OperationNode *node2 = currentNodesVector.back();
-            currentNodesVector.pop_back();
+        //pop off the last two
+        OperationNode *node1 = nodesVector.back();
+        nodesVector.pop_back();
+        OperationNode *node2 = nodesVector.back();
+        nodesVector.pop_back();
 
-            //constructing new JoinNode which inherently updates relNames,numRelations as well
-            //populates combined outschema as well
+        //constructing new JoinNode which inherently updates relNames,numRelations,outSchema as well
+        JoinOperationNode *joinNode = new JoinOperationNode(node1, node2);
+        //populate subAndlist
+        AndList *subAndList = joinNode->buildSubAndList(boolean);
+        joinNode->cnf.GrowFromParseTree(subAndList, node1->outSchema, node2->outSchema, joinNode->literal);
+        //apply and estimate
+        joinNode->estimatedTuples = statsCopy.Estimate(subAndList, joinNode->relationNames, joinNode->numRelations);
+        statsCopy.Apply(subAndList, joinNode->relationNames, joinNode->numRelations);
 
-            JoinOperationNode *joinNode = new JoinOperationNode(&statsCopy, node1, node2);
-            //populate subAndlist
-            AndList *subAndList = joinNode->buildSubAndList(booleanCopy);
-            //join and estimate
-
-            if (subAndList == NULL)
-                cout << "sun null" << endl;
-            currentEstimate += joinNode->statistics->Estimate(subAndList, joinNode->relationNames, joinNode->numRelations);
-            cout << "join 2.5" << endl;
-            joinNode->statistics->Apply(subAndList, joinNode->relationNames, joinNode->numRelations);
-            cout << "join3" << endl;
-            currentNodesVector.push_back((OperationNode *)joinNode);
-            currentJoinVector.push_back(joinNode);
-        }
-        if (currentEstimate < optimalEstimate)
-        {
-            optimalEstimate = currentEstimate;
-            optimalNodesVector = nodesVector;
-            optimalJoinVector = currentJoinVector;
-        }
+        nodesVector.push_back((OperationNode *)joinNode);
+        joinVector.push_back(joinNode);
     }
-    for (int i = optimalJoinVector.size() - 1; i >= 0; i--)
+    for (int i = joinVector.size() - 1; i >= 0; i--)
     {
-        optimalJoinVector[i]->printNodeInfo();
+        joinVector[i]->printNodeInfo();
     }
 }
 
@@ -175,40 +159,44 @@ void QueryPlanner::performProject()
         root = new ProjectOperationNode(attsToSelect, root);
 }
 
+//############################################
 //OperationNode
+//############################################
 int OperationNode::pipeId = 0;
 
 OperationNode::OperationNode(string operationName)
 {
     this->operationName = operationName;
-    this->outPipeID = pipeId++;
+    this->outPipeId = pipeId++;
 }
 
 OperationNode::OperationNode(string operationName, Statistics *statistics)
 {
     this->operationName = operationName;
     this->statistics = statistics;
-    this->outPipeID = pipeId++;
+    this->outPipeId = pipeId++;
 }
 OperationNode::OperationNode(string operationName, Statistics *statistics, Schema *outSchema)
 {
     this->operationName = operationName;
     this->statistics = statistics;
     this->outSchema = outSchema;
-    this->outPipeID = pipeId++;
+    this->outPipeId = pipeId++;
 }
 OperationNode::OperationNode(string operationName, Schema *outSchema)
 {
     this->operationName = operationName;
     this->outSchema = outSchema;
-    this->outPipeID = pipeId++;
+    this->outPipeId = pipeId++;
 }
 std::string OperationNode::getOperationName()
 {
     return operationName;
 }
 
+//############################################
 //AndListBasedOperationNode
+//############################################
 AndListBasedOperationNode::AndListBasedOperationNode(string operationName) : OperationNode(operationName)
 {
 }
@@ -264,45 +252,21 @@ bool AndListBasedOperationNode::isValidOr(OrList *booleanOrList)
     return false;
 }
 
-// bool AndListBasedOperationNode::buildSubOrList(OrList *orList, Schema *schema)
-// {
-//     OrList *subOrList;
-//     subOrList->rightOr = orList;
-//     OrList *previous = subOrList;
-//     OrList *current = subOrList->rightOr;
-
-//     //GOAL:: parse the subOrList and trim all irrelevance
-//     bool matchStatus = false;
-//     while (current != NULL)
-//     {
-//         //current->left is the comparisonOp
-//         if (isValidOr(current->left, schema))
-//         { //let this compOp stay
-//             matchStatus = true;
-//             previous = current;
-//             current = current->rightOr;
-//         }
-//         else
-//         { //skip current and trim it out
-//             previous->rightOr = current->rightOr;
-//             current = previous->rightOr;
-//         }
-//     }
-//     //removing the initial dummy node that was added just to init previous
-//     orList = subOrList->rightOr;
-//     return matchStatus;
-// }
-
-//(leftOperand->code != NAME || leftAttInSchema) && (rightOperand->code != NAME || rightAttInSchema)
+//############################################
 //SelectOperationNode
-
-SelectOperationNode::SelectOperationNode(Statistics *statistics) : AndListBasedOperationNode("select")
+//############################################
+SelectOperationNode::SelectOperationNode(Statistics *&statistics, Schema *outSchema, char *relationName, char *aliasName) : AndListBasedOperationNode("select")
 {
+    // this->outSchema = node->outSchema;
     this->statistics = statistics;
+    this->relationNames[0] = relationName;
+    this->aliasName = aliasName;
+    numRelations = 1;
+    numTuples = statistics->getNumTuplesOfRelation(relationNames[0]);
+    estimatedTuples = numTuples;
 }
 bool SelectOperationNode::isValidComparisonOp(ComparisonOp *compOp)
 {
-
     Operand *leftOperand = compOp->left;
     Operand *rightOperand = compOp->right;
     //return (leftOperand->code == NAME && rightOperand->code != NAME && (schema->Find(leftOperand->value) != -1));
@@ -313,66 +277,21 @@ bool SelectOperationNode::isValidComparisonOp(ComparisonOp *compOp)
 
     return compOp->code != EQUALS;
 }
-void SelectOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+void SelectOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
-    // os << "singletonLeaf CNF:" << endl;
-    // //cnf.Print();
-    // for (int i = 0; i < numRelations; i++)
-    //     os << relationNames[i] << ", ";
-    // os << endl;
-    // os << "Estimate = " << estimatedTuples << endl;
-}
-
-//SelectAfterJoinNode
-// SelectAfterJoinOperationNode::SelectAfterJoinOperationNode(Statistics *statistics) : AndListBasedOperationNode("selectAfterJoin")
-// {
-//     this->statistics = statistics;
-// }
-// bool SelectAfterJoinOperationNode::isValidCondition(ComparisonOp *compOp, Schema *schema)
-// {
-//     Operand *leftOperand = compOp->left;
-//     Operand *rightOperand = compOp->right;
-//     bool leftAttInSchema = (schema->Find(leftOperand->value) != -1) ? true : false;
-//     bool rightAttInSchema = (schema->Find(rightOperand->value) != -1) ? true : false;
-//     return (leftOperand->code == NAME && rightOperand->code == NAME && (compOp->code != EQUALS) && leftAttInSchema && rightAttInSchema);
-// }
-// void SelectAfterJoinOperationNode::printNodeInfo(std::ostream &os, size_t level) const
-// {
-
-//     // os << "singletonLeaf CNF:" << endl;
-//     // //cnf.Print();
-//     // for (int i = 0; i < numRelations; i++)
-//     //     os << relationNames[i] << ", ";
-//     // os << endl;
-//     // os << "Estimate = " << estimatedTuples << endl;
-// }
-
-//SingletonLeafNode
-SingletonLeafNode::SingletonLeafNode(Statistics *statistics, Schema *outSchema, char *relationName, char *aliasName) : OperationNode("leaf")
-{
-    this->outSchema = outSchema;
-    this->statistics = statistics;
-    this->relationNames[0] = relationName;
-    this->aliasName = aliasName;
-    this->outSchema = outSchema;
-    numRelations = 1;
-    estimatedTuples = statistics->getNumTuples(relationNames[0]);
-}
-void SingletonLeafNode::printNodeInfo(std::ostream &os, size_t level) const
-{
-
-    os << "singletonLeaf CNF:" << endl;
-    //cnf.Print();
+    os << "select CNF:" << endl;
+    cnf.Print();
     for (int i = 0; i < numRelations; i++)
         os << relationNames[i] << ", ";
     os << endl;
     os << "Estimate = " << estimatedTuples << endl;
 }
 
+//############################################
 //Join Operation Node
-JoinOperationNode::JoinOperationNode(Statistics *statistics, OperationNode *node1, OperationNode *node2) : AndListBasedOperationNode("join")
+//############################################
+JoinOperationNode::JoinOperationNode(OperationNode *node1, OperationNode *node2) : AndListBasedOperationNode("join")
 {
-    this->statistics = statistics;
     leftOperationNode = node1;
     rightOperationNode = node2;
     combineRelNames();
@@ -382,15 +301,9 @@ bool JoinOperationNode::isValidComparisonOp(ComparisonOp *compOp)
 {
     Operand *leftOperand = compOp->left;
     Operand *rightOperand = compOp->right;
-    cout << "left operator: " << leftOperand->value << endl;
-    cout << "right operator: " << rightOperand->value << endl;
-    cout << "code: " << compOp->code << endl;
-    cout << "NumAtts : " << outSchema->GetNumAtts() << endl;
 
     bool leftAttInSchema = (outSchema->Find(leftOperand->value) != -1) ? true : false;
     bool rightAttInSchema = (outSchema->Find(rightOperand->value) != -1) ? true : false;
-    cout << "schema l " << leftAttInSchema << endl;
-    cout << "schema r " << rightAttInSchema << endl;
 
     return (leftOperand->code == NAME && rightOperand->code == NAME && (compOp->code == EQUALS) && leftAttInSchema && rightAttInSchema);
 }
@@ -433,24 +346,27 @@ void JoinOperationNode::combineRelNames()
     }
 }
 
-void JoinOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+void JoinOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
-    os << "Join CNF:" << endl;
-    //cnf.Print();
+    os << "Join CNF: ";
+    cnf.Print();
+    os << "Pipe Id: " << this->outPipeId << endl;
     for (int i = 0; i < numRelations; i++)
         os << relationNames[i] << ", ";
     os << endl;
     os << "Estimate = " << estimatedTuples << endl;
 }
 
+//############################################
 //GroupBy Operation
+//############################################
 GroupByOperationNode::GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node) : OperationNode("groupBy")
 {
     groupOrder.growFromParseTree(groupingAtts, node->outSchema);
     func.GrowFromParseTree(parseTree, *node->outSchema);
     outSchema = resultantSchema(groupingAtts, parseTree, node);
 }
-void GroupByOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+void GroupByOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
     // os << "singletonLeaf CNF:" << endl;
     // //cnf.Print();
@@ -469,12 +385,14 @@ Schema *GroupByOperationNode::resultantSchema(NameList *groupingAtts, FuncOperat
     return cSchema;
 }
 
+//############################################
 //SumOperationNode
+//############################################
 SumOperationNode::SumOperationNode(FuncOperator *parseTree, OperationNode *node) : OperationNode("sum")
 {
     func.GrowFromParseTree(parseTree, *node->outSchema);
 }
-void SumOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+void SumOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
 }
 
@@ -487,30 +405,37 @@ Schema *SumOperationNode::resultSchema(FuncOperator *parseTree, OperationNode *n
     this->outSchema = new Schema("", 1, atts[fun.getSumType()]);
 }
 
+//############################################
 //duplicate removal operation node
+//############################################
 DupRemovalOperationNode::DupRemovalOperationNode(OperationNode *node) : OperationNode("dupRemoval")
 {
     this->outSchema = new Schema(*node->outSchema);
 }
-void DupRemovalOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+void DupRemovalOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
 }
 
+//############################################
 //Project functionality
+//############################################
 ProjectOperationNode::ProjectOperationNode(NameList *atts, OperationNode *node) : OperationNode("project")
 {
     //update the outschema of this ProjectNode
 }
-void ProjectOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+void ProjectOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
 }
 
+//############################################
 //Write OperationNode
+//############################################
 WriteOperationNode::WriteOperationNode(FILE *outFile, OperationNode *node) : OperationNode("write")
 {
     outFile = outFile;
     this->outSchema = new Schema(*node->outSchema);
 }
-void WriteOperationNode::printNodeInfo(std::ostream &os, size_t level) const
+void WriteOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
+    //write the outstream to the outFile
 }
