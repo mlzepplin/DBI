@@ -65,7 +65,7 @@ int main()
 	st->AddAtt(relName[1], "s_suppkey", 150000);
 	st->AddAtt(relName[1], "s_acctbal", 25);
 
-	st->AddRel(relName[2], 25);
+	st->AddRel(relName[2], 100000);
 	st->AddAtt(relName[2], "ps_partkey", 25);
 	st->AddAtt(relName[2], "ps_suppkey", 150000);
 	st->AddAtt(relName[2], "ps_supplycost", 150000);
