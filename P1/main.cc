@@ -75,4 +75,5 @@ int main()
 	QueryPlanner queryPlanner(st, outFilePath, boolean);
 
 	queryPlanner.planOperationOrder();
+	queryPlanner.executeQueryPlanner();
 }

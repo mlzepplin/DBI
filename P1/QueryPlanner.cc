@@ -2,8 +2,46 @@
 #include <float.h>
 
 char *catalogPath = "./catalog";
-char *binPath = "./bin/";
+char *binPath = "../bin/";
 //QueryPlanner
+
+int QueryPlanner::clear_pipe(Pipe &in_pipe, Schema *schema, bool print)
+{
+    Record rec;
+    int cnt = 0;
+    while (in_pipe.Remove(&rec))
+    {
+        cout << "here" << endl;
+        if (print)
+        {
+            rec.Print(schema);
+        }
+        cnt++;
+    }
+    return cnt;
+}
+
+int clear_pipe(Pipe &in_pipe, Schema *schema, Function &func, bool print)
+{
+    Record rec;
+    int cnt = 0;
+    double sum = 0;
+    while (in_pipe.Remove(&rec))
+    {
+        if (print)
+        {
+            rec.Print(schema);
+        }
+        int ival = 0;
+        double dval = 0;
+        func.Apply(rec, ival, dval);
+        sum += (ival + dval);
+        cnt++;
+    }
+    cout << " Sum: " << sum << endl;
+    return cnt;
+}
+
 void QueryPlanner::initLeaves()
 {
     // statistics->Read(inFilePath);
@@ -12,7 +50,7 @@ void QueryPlanner::initLeaves()
     {
         statistics->CopyRel(tables->tableName, tables->aliasAs);
         Schema *outSchema = new Schema(catalogPath, tables->tableName, tables->aliasAs);
-        OperationNode *currentNode = new SelectOperationNode(statistics, outSchema, tables->aliasAs, tables->aliasAs);
+        OperationNode *currentNode = new SelectOperationNode(statistics, outSchema, tables->tableName, tables->aliasAs);
         nodesVector.push_back(currentNode);
         //currentNode->printNodeInfo();
         tables = tables->next;
@@ -24,10 +62,10 @@ void QueryPlanner::planOperationOrder()
     //initLeaves does selection inherntly
     initLeaves();
     planAndBuildJoins();
-    buildSum();
-    buildDuplicate();
-    buildProject();
-    buildWrite();
+    // buildSum();
+    // buildDuplicate();
+    // buildProject();
+    // buildWrite();
     root->printNodeInfo();
 }
 
@@ -77,6 +115,9 @@ void QueryPlanner::executeQueryPlanner()
     {
         relopsList[i]->WaitUntilDone();
     }
+
+    //print to console
+    clear_pipe(*outPipesList[totalNodesInTree - 1], root->outSchema, true);
 
     for (int i = 0; i < totalNodesInTree; ++i)
     {

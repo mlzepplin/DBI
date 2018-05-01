@@ -87,6 +87,7 @@ public:
   void deepCopyAndList(AndList *&populateMe, AndList *copyMe);
   void print(std::ostream &os = std::cout);
   void setOutputMode(char *out);
+  int clear_pipe(Pipe &in_pipe, Schema *schema, bool print);
 };
 
 class OperationNode
