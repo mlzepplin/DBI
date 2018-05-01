@@ -12,7 +12,7 @@ void QueryPlanner::initLeaves()
     {
         statistics->CopyRel(tables->tableName, tables->aliasAs);
         Schema *outSchema = new Schema(catalogPath, tables->tableName, tables->aliasAs);
-        OperationNode *currentNode = new SelectOperationNode(statistics, outSchema, tables->tableName, tables->aliasAs);
+        OperationNode *currentNode = new SelectOperationNode(statistics, outSchema, tables->aliasAs, tables->aliasAs);
         nodesVector.push_back(currentNode);
         //currentNode->printNodeInfo();
         tables = tables->next;
@@ -21,6 +21,7 @@ void QueryPlanner::initLeaves()
 
 void QueryPlanner::planOperationOrder()
 {
+    //initLeaves does selection inherntly
     initLeaves();
     planJoins();
     //performSum();
