@@ -49,6 +49,7 @@ private:
   Statistics *statistics;
   AndList *andList;
   static int pipeId;
+  std::string outMode;
 
 public:
   QueryPlanner(Statistics *statistics, char *outFilePath, AndList *andList)
@@ -74,6 +75,7 @@ public:
   void deepCopyAndList(AndList *&populateMe, AndList *copyMe);
 
   void print(std::ostream &os = std::cout);
+  void setOutputMode(char *out);
 };
 
 class OperationNode
@@ -86,6 +88,7 @@ class OperationNode
   friend class DupRemovalOperationNode;
   friend class SumOperationNode;
   friend class SelectOperationNode;
+  friend class ProjectOperationNode;
 
 protected:
   Schema *outSchema;
@@ -206,12 +209,12 @@ public:
 
 class WriteOperationNode : public OperationNode
 {
-
-  FILE *outputFile;
+  friend class QueryPlanner;
 
 public:
-  WriteOperationNode(FILE *outFile, OperationNode *node);
+  WriteOperationNode(FILE *&outFile, OperationNode *node);
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0);
+  FILE *outputFile;
 };
 
 #endif
