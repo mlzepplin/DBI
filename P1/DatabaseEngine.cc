@@ -2,6 +2,7 @@
 #include "ParseTree.h"
 #include "Statistics.h"
 #include "QueryPlanner.h"
+#include "CRUDHelper.h"
 
 extern "C" {
 int yyparse(void); //defined in y.tab.c
@@ -27,7 +28,9 @@ void DatabaseEngine::run()
     char *statsFile = "Statistics.txt";
 
     Statistics stats;
-    QueryPlanner queryPlan(&stats);
+    CRUDHelper crud;
+
+    QueryPlanner queryPlanner(&stats);
 
     while (true)
     {
@@ -39,5 +42,49 @@ void DatabaseEngine::run()
         }
 
         stats.Read(statsFile);
+
+        if (newtable)
+        {
+            if (crud.createTable())
+            {
+                cout << "Created table " << newtable << endl;
+            }
+            else
+            {
+                cout << "Cannot create table " << endl;
+            }
+        }
+        else if (oldtable && newfile)
+        {
+            if (crud.insertInto())
+            {
+                cout << "Insert into " << oldtable << endl;
+            }
+            else
+            {
+                cout << "Insert can't be performed" << endl;
+            }
+        }
+        else if (oldtable && !newfile)
+        {
+            if (crud.dropTable())
+            {
+                cout << oldtable << " dropped" << endl;
+            }
+            else
+            {
+                cout << "Drop can't be performed on " << oldtable << endl;
+            }
+        }
+        else if (outputmode)
+        {
+            queryPlanner.setOutputMode(outputmode);
+        }
+        else if (attsToSelect || finalFunction)
+        {
+            queryPlanner.planOperationOrder();
+            queryPlanner.printOperationOrder();
+            queryPlanner.executeQueryPlanner();
+        }
     }
 }
