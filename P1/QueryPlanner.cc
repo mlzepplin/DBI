@@ -24,10 +24,10 @@ void QueryPlanner::planOperationOrder()
     //initLeaves does selection inherntly
     initLeaves();
     planAndBuildJoins();
-    //buildSum();
+    buildSum();
     buildDuplicate();
     buildProject();
-    //buildWrite();
+    buildWrite();
     root->printNodeInfo();
 }
 
@@ -497,15 +497,15 @@ void GroupByOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **
 SumOperationNode::SumOperationNode(FuncOperator *parseTree, OperationNode *node) : OperationNode("sum")
 {
     this->function.GrowFromParseTree(parseTree, *node->outSchema);
+    this->outSchema = buildOutSchema(parseTree, node);
     this->child = node;
 }
-
-Schema *SumOperationNode::resultSchema(FuncOperator *parseTree, OperationNode *node)
+Schema *SumOperationNode::buildOutSchema(FuncOperator *parseTree, OperationNode *node)
 {
     Attribute atts[2][1] = {{{"sum", Int}}, {{"sum", Double}}};
     this->function.GrowFromParseTree(parseTree, *node->outSchema);
     //as not passing the outschema to base, so setting it here
-    this->outSchema = new Schema("", 1, atts[this->function.getSumType()]);
+    return new Schema("", 1, atts[this->function.getSumType()]);
 }
 
 void SumOperationNode::printNodeInfo(std::ostream &os, size_t level)
@@ -599,7 +599,7 @@ void ProjectOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **
 WriteOperationNode::WriteOperationNode(FILE *&outFile, OperationNode *node) : OperationNode("write")
 {
     this->child = node;
-    outputFile = outFile;
+    //outputFile = outFile;
     this->outSchema = new Schema(*node->outSchema);
 }
 
@@ -607,7 +607,7 @@ void WriteOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
     child->printNodeInfo();
     //write the outstream to the outFile
-    os << "write out";
+    os << "write out" << endl;
     // os << "Output written to " << outputFile << endl;
 }
 void WriteOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)

@@ -211,7 +211,7 @@ class SumOperationNode : public OperationNode
 public:
   SumOperationNode(FuncOperator *parseTree, OperationNode *node);
   void printNodeInfo(std::ostream &os = std::cout, size_t level = 0);
-  Schema *resultSchema(FuncOperator *parseTree, OperationNode *node);
+  Schema *buildOutSchema(FuncOperator *parseTree, OperationNode *node);
   void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
 };
 
