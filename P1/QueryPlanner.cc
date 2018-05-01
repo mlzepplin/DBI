@@ -2,7 +2,7 @@
 #include <float.h>
 
 char *catalogPath = "./catalog";
-
+char *binPath = "./bin/";
 //QueryPlanner
 void QueryPlanner::initLeaves()
 {
@@ -23,42 +23,88 @@ void QueryPlanner::planOperationOrder()
 {
     //initLeaves does selection inherntly
     initLeaves();
-    planJoins();
-    //performSum();
+    planAndBuildJoins();
+    //buildSum();
+    buildDuplicate();
+    buildProject();
+    //buildWrite();
+    root->printNodeInfo();
 }
 
 void QueryPlanner::printOperationOrder()
 {
-    for (int i = 0; i < nodesVector.size(); i++)
-    {
-        string nodeType = nodesVector[i]->getOperationName();
-        if (nodeType == "join")
-        {
-            ((JoinOperationNode *)nodesVector[i])->printNodeInfo(outStream, 0);
-        }
-        else if (nodeType == "leaf")
-        {
+    // for (int i = 0; i < nodesVector.size(); i++)
+    // {
+    //     string nodeType = nodesVector[i]->getOperationName();
+    //     if (nodeType == "join")
+    //     {
+    //         ((JoinOperationNode *)nodesVector[i])->printNodeInfo(outStream, 0);
+    //     }
+    //     else if (nodeType == "leaf")
+    //     {
 
-            ((SelectOperationNode *)nodesVector[i])->printNodeInfo(outStream, 0);
-        }
-        else
-            ;
-    }
+    //         ((SelectOperationNode *)nodesVector[i])->printNodeInfo(outStream, 0);
+    //     }
+    //     else
+    //         ;
+    // }
 }
+void QueryPlanner::executeQueryPlanner()
+{
 
+    // if (outMode == "STDOUT")
+    // {
+    //     outputFile = stdout;
+    // }
+    // else if (outMode == "NONE")
+    // {
+    //     outputFile = NULL;
+    // }
+    // else
+
+    // closed by query executor
+
+    int totalNodesInTree = root->outPipeId;
+    //NOTE: ALL RELATION'S WAIT-UNTIL DONE WILL HAVE TO BE CALLED FROM THE OUTSIDE
+    //SO THAT WE CAN PLAY AROUND WITH THE SEQUENCE, OF RELOPS, WITH THEIR WAITUNTILDONES
+    Pipe **outPipesList = new Pipe *[totalNodesInTree];
+    RelationalOp **relopsList = new RelationalOp *[totalNodesInTree];
+
+    root->executeOperation(outPipesList, relopsList);
+
+    //WAITUNTIL DONE CALLS IN SEQUENTIAL ORDER
+    for (int i = 0; i < totalNodesInTree; ++i)
+    {
+        relopsList[i]->WaitUntilDone();
+    }
+
+    for (int i = 0; i < totalNodesInTree; ++i)
+    {
+        delete outPipesList[i];
+        delete relopsList[i];
+    }
+
+    delete[] outPipesList;
+    delete[] relopsList;
+    //deallocating root
+    root->outPipeId = 0;
+    delete root;
+    root = NULL;
+    nodesVector.clear();
+}
 void QueryPlanner::setOutputMode(char *mode)
 {
     outMode = mode;
 }
 
-void QueryPlanner::performSum()
+void QueryPlanner::buildSum()
 {
-    //Perform groupby if grouping attributes are provided
+    //build groupby if grouping attributes are provided
     if (groupingAtts)
     {
         if (!finalFunction)
         {
-            cout << "Group by can't be performed without aggregate function";
+            cout << "Group by can't be builded without aggregate function";
             exit(-1);
         }
         if (distinctFunc)
@@ -73,7 +119,10 @@ void QueryPlanner::performSum()
         root = new SumOperationNode(finalFunction, root);
     }
 }
-
+void QueryPlanner::buildWrite()
+{
+    root = new WriteOperationNode(outputFile, root);
+}
 void QueryPlanner::deepCopyAndList(AndList *&populateMe, AndList *copyMe)
 {
     //note every pointer movement of populateMe, also update the caller of populateMe
@@ -123,12 +172,17 @@ bool cmp(OperationNode *&a, OperationNode *&b)
     return a->getNumTuples() > b->getNumTuples();
 }
 
-void QueryPlanner::planJoins()
+void QueryPlanner::buildDuplicate()
+{
+    if (distinctAtts)
+        root = new DupRemovalOperationNode(root);
+}
+void QueryPlanner::planAndBuildJoins()
 {
 
     vector<OperationNode *>::iterator nodesVecIter;
     //required for printing purposes
-    vector<JoinOperationNode *> joinVector;
+
     double estimate = 0.0;
     Statistics statsCopy = *statistics; //making a deep copy
 
@@ -155,13 +209,14 @@ void QueryPlanner::planJoins()
         nodesVector.push_back((OperationNode *)joinNode);
         joinVector.push_back(joinNode);
     }
-    for (int i = joinVector.size() - 1; i >= 0; i--)
-    {
-        joinVector[i]->printNodeInfo();
-    }
+    // for (int i = joinVector.size() - 1; i >= 0; i--)
+    // {
+    //     joinVector[i]->printNodeInfo();
+    // }
+    root = joinVector[joinVector.size() - 1];
 }
 
-void QueryPlanner::performProject()
+void QueryPlanner::buildProject()
 {
     if (attsToSelect && !finalFunction && !groupingAtts)
         root = new ProjectOperationNode(attsToSelect, root);
@@ -299,6 +354,18 @@ void SelectOperationNode::printNodeInfo(std::ostream &os, size_t level)
     os << "Estimate = " << estimatedTuples << endl;
 }
 
+void SelectOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
+{
+    //reading input from table's bin file
+    string binFileName = string(binPath) + string(relationNames[0]) + ".bin";
+    dbFile.Open((char *)binFileName.c_str());
+    SelectFile *selectFile = new SelectFile();
+    relopsList[outPipeId] = selectFile;
+    outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
+    //will populate outpipe
+    selectFile->Run(dbFile, *outPipesList[outPipeId], this->cnf, this->literal);
+}
+
 //############################################
 //Join Operation Node
 //############################################
@@ -362,6 +429,9 @@ void JoinOperationNode::combineRelNames()
 
 void JoinOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
+    leftOperationNode->printNodeInfo();
+    rightOperationNode->printNodeInfo();
+
     os << "Join CNF: ";
     cnf.Print();
     os << "Pipe Id: " << this->outPipeId << endl;
@@ -370,6 +440,17 @@ void JoinOperationNode::printNodeInfo(std::ostream &os, size_t level)
     os << endl;
     os << "Estimate = " << estimatedTuples << endl;
 }
+void JoinOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
+{
+    leftOperationNode->executeOperation(outPipesList, relopsList);
+    rightOperationNode->executeOperation(outPipesList, relopsList);
+
+    Join *join = new Join();
+    relopsList[outPipeId] = join;
+    outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
+    //will populate outpipe
+    join->Run(*outPipesList[leftOperationNode->outPipeId], *outPipesList[rightOperationNode->outPipeId], *outPipesList[outPipeId], this->cnf, this->literal);
+}
 
 //############################################
 //GroupBy Operation
@@ -377,12 +458,15 @@ void JoinOperationNode::printNodeInfo(std::ostream &os, size_t level)
 GroupByOperationNode::GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node) : OperationNode("groupBy")
 {
     groupOrder.growFromParseTree(groupingAtts, node->outSchema);
-    func.GrowFromParseTree(parseTree, *node->outSchema);
+    this->function.GrowFromParseTree(parseTree, *node->outSchema);
     outSchema = resultantSchema(groupingAtts, parseTree, node);
+    this->child = node;
 }
 
 void GroupByOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
+    child->printNodeInfo();
+    os << "Group by: ";
     os << "OrderMaker:" << endl;
     //os << groupOrder.Print() << endl;
     os << "Function: " << endl;
@@ -391,12 +475,20 @@ void GroupByOperationNode::printNodeInfo(std::ostream &os, size_t level)
 
 Schema *GroupByOperationNode::resultantSchema(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node)
 {
-    Function f;
     Attribute atts[2][1] = {{{"sum", Int}}, {{"sum", Double}}};
     Schema *groupBySchema = node->outSchema;
-    f.GrowFromParseTree(parseTree, *groupBySchema);
+    this->function.GrowFromParseTree(parseTree, *groupBySchema);
 
     return groupBySchema;
+}
+void GroupByOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
+{
+    child->executeOperation(outPipesList, relopsList);
+    GroupBy *groupBy = new GroupBy();
+    relopsList[outPipeId] = groupBy;
+    outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
+    //will populate outpipe
+    groupBy->Run(*outPipesList[child->outPipeId], *outPipesList[outPipeId], groupOrder, this->function);
 }
 
 //############################################
@@ -404,22 +496,33 @@ Schema *GroupByOperationNode::resultantSchema(NameList *groupingAtts, FuncOperat
 //############################################
 SumOperationNode::SumOperationNode(FuncOperator *parseTree, OperationNode *node) : OperationNode("sum")
 {
-    func.GrowFromParseTree(parseTree, *node->outSchema);
+    this->function.GrowFromParseTree(parseTree, *node->outSchema);
+    this->child = node;
 }
 
 Schema *SumOperationNode::resultSchema(FuncOperator *parseTree, OperationNode *node)
 {
-    Function fun;
     Attribute atts[2][1] = {{{"sum", Int}}, {{"sum", Double}}};
-    fun.GrowFromParseTree(parseTree, *node->outSchema);
+    this->function.GrowFromParseTree(parseTree, *node->outSchema);
     //as not passing the outschema to base, so setting it here
-    this->outSchema = new Schema("", 1, atts[fun.getSumType()]);
+    this->outSchema = new Schema("", 1, atts[this->function.getSumType()]);
 }
 
 void SumOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
+    child->printNodeInfo();
+    os << "Sum: ";
     os << "Function: " << endl;
-    func.Print();
+    function.Print();
+}
+void SumOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
+{
+    child->executeOperation(outPipesList, relopsList);
+    Sum *sum = new Sum();
+    relopsList[outPipeId] = sum;
+    outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
+    //will populate outpipe
+    sum->Run(*outPipesList[child->outPipeId], *outPipesList[outPipeId], function);
 }
 
 //############################################
@@ -428,9 +531,21 @@ void SumOperationNode::printNodeInfo(std::ostream &os, size_t level)
 DupRemovalOperationNode::DupRemovalOperationNode(OperationNode *node) : OperationNode("dupRemoval")
 {
     this->outSchema = new Schema(*node->outSchema);
+    this->child = node;
 }
 void DupRemovalOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
+    child->printNodeInfo();
+    os << "duplicate removal: " << endl;
+}
+void DupRemovalOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
+{
+    child->executeOperation(outPipesList, relopsList);
+    DuplicateRemoval *duplicateRemoval = new DuplicateRemoval();
+    relopsList[outPipeId] = duplicateRemoval;
+    outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
+    //will populate outpipe
+    duplicateRemoval->Run(*outPipesList[child->outPipeId], *outPipesList[outPipeId], (*this->outSchema));
 }
 
 //############################################
@@ -440,6 +555,7 @@ ProjectOperationNode::ProjectOperationNode(NameList *atts, OperationNode *node) 
 {
     //update the outschema of this ProjectNode
     Schema *tempSchema = node->outSchema;
+    this->child = node;
     Attribute projectAtts[MAX_ATTS];
     for (; atts; atts = atts->next, numProjectedAtts++)
     {
@@ -455,6 +571,8 @@ ProjectOperationNode::ProjectOperationNode(NameList *atts, OperationNode *node) 
 
 void ProjectOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
+    child->printNodeInfo();
+    os << "project: ";
     os << keepMe[0];
 
     for (int i = 1; i < numProjectedAtts; ++i)
@@ -465,18 +583,39 @@ void ProjectOperationNode::printNodeInfo(std::ostream &os, size_t level)
     os << numInputAtts << "Input Attributes" << endl;
     os << numProjectedAtts << "Projected Attributes" << endl;
 }
+void ProjectOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
+{
+    child->executeOperation(outPipesList, relopsList);
+    Project *project = new Project();
+    relopsList[outPipeId] = project;
+    outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
+    //will populate outpipe
+    project->Run(*outPipesList[child->outPipeId], *outPipesList[outPipeId], keepMe, numInputAtts, numProjectedAtts);
+}
 
 //############################################
 //Write OperationNode
 //############################################
 WriteOperationNode::WriteOperationNode(FILE *&outFile, OperationNode *node) : OperationNode("write")
 {
+    this->child = node;
     outputFile = outFile;
     this->outSchema = new Schema(*node->outSchema);
 }
 
 void WriteOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
+    child->printNodeInfo();
     //write the outstream to the outFile
-    os << "Output written to " << outputFile << endl;
+    os << "write out";
+    // os << "Output written to " << outputFile << endl;
+}
+void WriteOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
+{
+    child->executeOperation(outPipesList, relopsList);
+    WriteOut *writeOut = new WriteOut();
+    relopsList[outPipeId] = writeOut;
+    outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
+    //will populate outpipe
+    writeOut->Run(*outPipesList[child->outPipeId], outputFile, *(this->outSchema));
 }
