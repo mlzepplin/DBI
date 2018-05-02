@@ -5,8 +5,78 @@ char *catalogPath = "./catalog";
 char *binPath = "../bin/";
 //QueryPlanner
 
+void PrintOperand(struct Operand *pOperand)
+{
+    if (pOperand != NULL)
+    {
+        cout << pOperand->value << " ";
+    }
+    else
+        return;
+}
+
+void PrintComparisonOp(struct ComparisonOp *pCom)
+{
+    if (pCom != NULL)
+    {
+        PrintOperand(pCom->left);
+        switch (pCom->code)
+        {
+        case LESS_THAN:
+            cout << " < ";
+            break;
+        case GREATER_THAN:
+            cout << " > ";
+            break;
+        case EQUALS:
+            cout << " = ";
+        }
+        PrintOperand(pCom->right);
+    }
+    else
+    {
+        return;
+    }
+}
+void PrintOrList(struct OrList *pOr)
+{
+    if (pOr != NULL)
+    {
+        struct ComparisonOp *pCom = pOr->left;
+        PrintComparisonOp(pCom);
+
+        if (pOr->rightOr)
+        {
+            cout << " OR ";
+            PrintOrList(pOr->rightOr);
+        }
+    }
+    else
+    {
+        return;
+    }
+}
+void PrintAndList(struct AndList *pAnd)
+{
+    if (pAnd != NULL)
+    {
+        struct OrList *pOr = pAnd->left;
+        PrintOrList(pOr);
+        if (pAnd->rightAnd)
+        {
+            cout << " AND ";
+            PrintAndList(pAnd->rightAnd);
+        }
+    }
+    else
+    {
+        return;
+    }
+}
+
 int QueryPlanner::clear_pipe(Pipe &in_pipe, Schema *schema, bool print)
 {
+    //cout << "here1" << endl;
     Record rec;
     int cnt = 0;
     while (in_pipe.Remove(&rec))
@@ -50,7 +120,7 @@ void QueryPlanner::initLeaves()
     {
         statistics->CopyRel(tables->tableName, tables->aliasAs);
         Schema *outSchema = new Schema(catalogPath, tables->tableName, tables->aliasAs);
-        OperationNode *currentNode = new SelectOperationNode(statistics, outSchema, tables->tableName, tables->aliasAs);
+        OperationNode *currentNode = new SelectOperationNode(statistics, outSchema, tables->aliasAs, tables->aliasAs);
         nodesVector.push_back(currentNode);
         //currentNode->printNodeInfo();
         tables = tables->next;
@@ -59,14 +129,14 @@ void QueryPlanner::initLeaves()
 
 void QueryPlanner::planOperationOrder()
 {
-    //initLeaves does selection inherntly
+    //initLeaves does selection inherently
     initLeaves();
     planAndBuildJoins();
     // buildSum();
     // buildDuplicate();
     // buildProject();
     // buildWrite();
-    root->printNodeInfo();
+    // root->printNodeInfo();
 }
 
 void QueryPlanner::printOperationOrder()
@@ -89,19 +159,6 @@ void QueryPlanner::printOperationOrder()
 }
 void QueryPlanner::executeQueryPlanner()
 {
-
-    // if (outMode == "STDOUT")
-    // {
-    //     outputFile = stdout;
-    // }
-    // else if (outMode == "NONE")
-    // {
-    //     outputFile = NULL;
-    // }
-    // else
-
-    // closed by query executor
-
     int totalNodesInTree = root->outPipeId;
     //NOTE: ALL RELATION'S WAIT-UNTIL DONE WILL HAVE TO BE CALLED FROM THE OUTSIDE
     //SO THAT WE CAN PLAY AROUND WITH THE SEQUENCE, OF RELOPS, WITH THEIR WAITUNTILDONES
@@ -109,16 +166,25 @@ void QueryPlanner::executeQueryPlanner()
     RelationalOp **relopsList = new RelationalOp *[totalNodesInTree];
 
     root->executeOperation(outPipesList, relopsList);
+    //cout << outPipesList[totalNodesInTree - 1]->firstSlot;
 
+    //clear_pipe(*outPipesList[totalNodesInTree - 1], root->outSchema, true);
     //WAITUNTIL DONE CALLS IN SEQUENTIAL ORDER
     for (int i = 0; i < totalNodesInTree; ++i)
     {
+        cout << "w" << i << endl;
         relopsList[i]->WaitUntilDone();
     }
 
+    Record temp;
+    if (outPipesList[totalNodesInTree - 1]->Remove(&temp))
+    {
+        cout << "root pipe" << endl;
+        temp.Print(root->outSchema);
+    }
+    //OrderMaker(root->outSchema).Print();
     //print to console
-    clear_pipe(*outPipesList[totalNodesInTree - 1], root->outSchema, true);
-
+    //clear_pipe(*outPipesList[totalNodesInTree - 1], root->outSchema, true);
     for (int i = 0; i < totalNodesInTree; ++i)
     {
         delete outPipesList[i];
@@ -242,6 +308,7 @@ void QueryPlanner::planAndBuildJoins()
         JoinOperationNode *joinNode = new JoinOperationNode(node1, node2);
         //populate subAndlist
         AndList *subAndList = joinNode->buildSubAndList(boolean);
+
         joinNode->cnf.GrowFromParseTree(subAndList, node1->outSchema, node2->outSchema, joinNode->literal);
         //apply and estimate
         joinNode->estimatedTuples = statsCopy.Estimate(subAndList, joinNode->relationNames, joinNode->numRelations);
@@ -338,6 +405,7 @@ AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean)
     }
     //removing the initial dummy node that was added just to init previous
     boolean = head.rightAnd;
+    this->aList = subAndList;
     return subAndList;
 }
 
@@ -399,6 +467,7 @@ void SelectOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **r
 {
     //reading input from table's bin file
     string binFileName = string(binPath) + string(relationNames[0]) + ".bin";
+    cout << "select: " << binFileName << endl;
     dbFile.Open((char *)binFileName.c_str());
     SelectFile *selectFile = new SelectFile();
     relopsList[outPipeId] = selectFile;
@@ -480,12 +549,29 @@ void JoinOperationNode::printNodeInfo(std::ostream &os, size_t level)
         os << relationNames[i] << ", ";
     os << endl;
     os << "Estimate = " << estimatedTuples << endl;
+    cout << "schema: " << endl;
+    //OrderMaker(this->outSchema).Print();
 }
 void JoinOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
 {
     leftOperationNode->executeOperation(outPipesList, relopsList);
     rightOperationNode->executeOperation(outPipesList, relopsList);
 
+    Record rec;
+    cout << "join" << outPipeId << endl;
+    cout << "subAndlist" << endl;
+    PrintAndList(aList);
+
+    if (outPipesList[leftOperationNode->outPipeId]->Remove(&rec))
+    {
+        cout << "left" << endl;
+        rec.Print(leftOperationNode->outSchema);
+    }
+    if (outPipesList[rightOperationNode->outPipeId]->Remove(&rec))
+    {
+        cout << "right" << endl;
+        rec.Print(rightOperationNode->outSchema);
+    }
     Join *join = new Join();
     relopsList[outPipeId] = join;
     outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
@@ -509,7 +595,7 @@ void GroupByOperationNode::printNodeInfo(std::ostream &os, size_t level)
     child->printNodeInfo();
     os << "Group by: ";
     os << "OrderMaker:" << endl;
-    //os << groupOrder.Print() << endl;
+    //    ((const_cast<OrderMaker*>(&groupOrder))->Print() ;
     os << "Function: " << endl;
     // print func
 }
@@ -543,10 +629,11 @@ SumOperationNode::SumOperationNode(FuncOperator *parseTree, OperationNode *node)
 }
 Schema *SumOperationNode::buildOutSchema(FuncOperator *parseTree, OperationNode *node)
 {
+    Function fun;
     Attribute atts[2][1] = {{{"sum", Int}}, {{"sum", Double}}};
-    this->function.GrowFromParseTree(parseTree, *node->outSchema);
     //as not passing the outschema to base, so setting it here
-    return new Schema("", 1, atts[this->function.getSumType()]);
+    fun.GrowFromParseTree(parseTree, *node->outSchema);
+    return new Schema("", 1, atts[fun.getSumType()]);
 }
 
 void SumOperationNode::printNodeInfo(std::ostream &os, size_t level)
@@ -554,7 +641,7 @@ void SumOperationNode::printNodeInfo(std::ostream &os, size_t level)
     child->printNodeInfo();
     os << "Sum: ";
     os << "Function: " << endl;
-    function.Print();
+    (const_cast<Function *>(&function))->Print();
 }
 void SumOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
 {

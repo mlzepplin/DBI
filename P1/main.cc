@@ -56,7 +56,7 @@ int main()
 
 	Statistics *st = new Statistics();
 	//st.Read("Statistics.txt");
-	char *relName[] = {"part", "supplier", "partsupp"};
+	char *relName[] = {"part", "supplier", "partsupp", "region", "nation", "customer", "orders", "lineitem"};
 
 	st->AddRel(relName[0], 1500000);
 	st->AddAtt(relName[0], "p_partkey", 150000);
@@ -69,6 +69,17 @@ int main()
 	st->AddAtt(relName[2], "ps_partkey", 25);
 	st->AddAtt(relName[2], "ps_suppkey", 150000);
 	st->AddAtt(relName[2], "ps_supplycost", 150000);
+
+	// st->AddRel(relName[4], 5);
+	// st->AddAtt(relName[4], "r_regionkey", 5);
+
+	// st->AddRel(relName[5], 25);
+
+	// st->AddRel(relName[6], 15000);
+
+	// st->AddRel(relName[7], 1500000);
+
+	// st->AddRel(relName[8], 6001215);
 
 	char *outFilePath = "./QueryPlannerOutput.txt";
 

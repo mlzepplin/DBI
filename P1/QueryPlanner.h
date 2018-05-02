@@ -143,6 +143,7 @@ class AndListBasedOperationNode : public OperationNode
 protected:
   CNF cnf;
   Record literal;
+  AndList *aList;
 
 public:
   AndListBasedOperationNode(string operationName);
