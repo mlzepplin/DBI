@@ -133,8 +133,8 @@ void QueryPlanner::planOperationOrder()
     initLeaves();
     planAndBuildJoins();
     buildSum();
-    buildDuplicate();
-    buildProject();
+    // buildDuplicate();
+    // buildProject();
     buildWrite();
     root->printNodeInfo(this->outStream);
 }
@@ -175,16 +175,16 @@ void QueryPlanner::executeQueryPlanner()
         cout << "w" << i << endl;
         relopsList[i]->WaitUntilDone();
     }
+    clear_pipe(*outPipesList[totalNodesInTree - 1], root->outSchema, true);
 
-    Record temp;
-    if (outPipesList[totalNodesInTree - 1]->Remove(&temp))
-    {
-        cout << "root pipe" << endl;
-        temp.Print(root->outSchema);
-    }
+    // Record temp;
+    // if (outPipesList[totalNodesInTree - 1]->Remove(&temp))
+    // {
+    //     cout << "root pipe" << endl;
+    //     temp.Print(root->outSchema);
+    // }
     //OrderMaker(root->outSchema).Print();
     //print to console
-    //clear_pipe(*outPipesList[totalNodesInTree - 1], root->outSchema, true);
     for (int i = 0; i < totalNodesInTree; ++i)
     {
         delete outPipesList[i];
@@ -309,7 +309,7 @@ void QueryPlanner::planAndBuildJoins()
         //populate subAndlist
         AndList *subAndList = joinNode->buildSubAndList(boolean);
 
-        joinNode->cnf.GrowFromParseTree(subAndList, node1->outSchema, node2->outSchema, joinNode->literal);
+        //joinNode->cnf.GrowFromParseTree(subAndList, node1->outSchema, node2->outSchema, joinNode->literal);
         //apply and estimate
         joinNode->estimatedTuples = statsCopy.Estimate(subAndList, joinNode->relationNames, joinNode->numRelations);
         statsCopy.Apply(subAndList, joinNode->relationNames, joinNode->numRelations);
@@ -576,6 +576,7 @@ void JoinOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **rel
     relopsList[outPipeId] = join;
     outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
     //will populate outpipe
+    join->Use_n_Pages(5);
     join->Run(*outPipesList[leftOperationNode->outPipeId], *outPipesList[rightOperationNode->outPipeId], *outPipesList[outPipeId], this->cnf, this->literal);
 }
 
