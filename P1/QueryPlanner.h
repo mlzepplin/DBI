@@ -85,7 +85,7 @@ public:
 
   //Helper methods
   void deepCopyAndList(AndList *&populateMe, AndList *copyMe);
-  void print(std::ostream &os = std::cout);
+  void print(std::ostream &os);
   void setOutputMode(char *out);
   int clear_pipe(Pipe &in_pipe, Schema *schema, bool print);
 };
@@ -131,7 +131,7 @@ public:
   // OperationNode(string operationName, Schema *outSchema, string, Statistics *statistics);
   // OperationNode(string operationName, Schema *outSchema, vector<string>, Statistics *statistics);
 
-  virtual void printNodeInfo(std::ostream &os = std::cout, size_t level = 0) = 0;
+  virtual void printNodeInfo(std::ostream &os, size_t level = 0) = 0;
   virtual void executeOperation(Pipe **outPipesList, RelationalOp **relopsList) = 0;
   std::string getOperationName();
 
@@ -163,7 +163,7 @@ private:
 
 public:
   JoinOperationNode(OperationNode *node1, OperationNode *node2);
-  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0);
+  void printNodeInfo(std::ostream &os, size_t level = 0);
   void combineRelNames();
   void populateJoinOutSchema();
   bool isValidComparisonOp(ComparisonOp *compOp);
@@ -179,7 +179,7 @@ private:
 public:
   SelectOperationNode(Statistics *&statistics, Schema *outSchema, char *relationName, char *aliasName);
   bool isValidComparisonOp(ComparisonOp *compOp);
-  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0);
+  void printNodeInfo(std::ostream &os, size_t level = 0);
   void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
 };
 
@@ -192,7 +192,7 @@ class ProjectOperationNode : public OperationNode
 
 public:
   ProjectOperationNode(NameList *atts, OperationNode *node); //will update outschema from inside
-  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0);
+  void printNodeInfo(std::ostream &os, size_t level = 0);
   void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
 };
 
@@ -202,7 +202,7 @@ class DupRemovalOperationNode : public OperationNode
 
 public:
   DupRemovalOperationNode(OperationNode *node);
-  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0);
+  void printNodeInfo(std::ostream &os, size_t level = 0);
   void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
 };
 
@@ -212,7 +212,7 @@ class SumOperationNode : public OperationNode
 
 public:
   SumOperationNode(FuncOperator *parseTree, OperationNode *node);
-  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0);
+  void printNodeInfo(std::ostream &os, size_t level = 0);
   Schema *buildOutSchema(FuncOperator *parseTree, OperationNode *node);
   void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
 };
@@ -224,7 +224,7 @@ class GroupByOperationNode : public OperationNode
 
 public:
   GroupByOperationNode(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node);
-  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0);
+  void printNodeInfo(std::ostream &os, size_t level = 0);
   Schema *resultantSchema(NameList *groupingAtts, FuncOperator *parseTree, OperationNode *node);
   void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
 };
@@ -235,7 +235,7 @@ class WriteOperationNode : public OperationNode
 
 public:
   WriteOperationNode(FILE *&outFile, OperationNode *node);
-  void printNodeInfo(std::ostream &os = std::cout, size_t level = 0);
+  void printNodeInfo(std::ostream &os, size_t level = 0);
   FILE *outputFile;
   void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
 };

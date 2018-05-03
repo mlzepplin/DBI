@@ -132,11 +132,11 @@ void QueryPlanner::planOperationOrder()
     //initLeaves does selection inherently
     initLeaves();
     planAndBuildJoins();
-    // buildSum();
-    // buildDuplicate();
-    // buildProject();
-    // buildWrite();
-    // root->printNodeInfo();
+    buildSum();
+    buildDuplicate();
+    buildProject();
+    buildWrite();
+    root->printNodeInfo(this->outStream);
 }
 
 void QueryPlanner::printOperationOrder()
@@ -211,7 +211,7 @@ void QueryPlanner::buildSum()
     {
         if (!finalFunction)
         {
-            cout << "Group by can't be builded without aggregate function";
+            cout << "Group by can't be built without aggregate function";
             exit(-1);
         }
         if (distinctFunc)
@@ -539,8 +539,8 @@ void JoinOperationNode::combineRelNames()
 
 void JoinOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
-    leftOperationNode->printNodeInfo();
-    rightOperationNode->printNodeInfo();
+    leftOperationNode->printNodeInfo(os);
+    rightOperationNode->printNodeInfo(os);
 
     os << "Join CNF: ";
     cnf.Print();
@@ -564,12 +564,12 @@ void JoinOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **rel
 
     if (outPipesList[leftOperationNode->outPipeId]->Remove(&rec))
     {
-        cout << "left" << endl;
+        cout << "\nleft" << endl;
         rec.Print(leftOperationNode->outSchema);
     }
     if (outPipesList[rightOperationNode->outPipeId]->Remove(&rec))
     {
-        cout << "right" << endl;
+        cout << "\nright" << endl;
         rec.Print(rightOperationNode->outSchema);
     }
     Join *join = new Join();
@@ -592,7 +592,7 @@ GroupByOperationNode::GroupByOperationNode(NameList *groupingAtts, FuncOperator 
 
 void GroupByOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
-    child->printNodeInfo();
+    child->printNodeInfo(os);
     os << "Group by: ";
     os << "OrderMaker:" << endl;
     //    ((const_cast<OrderMaker*>(&groupOrder))->Print() ;
@@ -638,7 +638,7 @@ Schema *SumOperationNode::buildOutSchema(FuncOperator *parseTree, OperationNode 
 
 void SumOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
-    child->printNodeInfo();
+    child->printNodeInfo(os);
     os << "Sum: ";
     os << "Function: " << endl;
     (const_cast<Function *>(&function))->Print();
@@ -663,7 +663,7 @@ DupRemovalOperationNode::DupRemovalOperationNode(OperationNode *node) : Operatio
 }
 void DupRemovalOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
-    child->printNodeInfo();
+    child->printNodeInfo(os);
     os << "duplicate removal: " << endl;
 }
 void DupRemovalOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
@@ -699,7 +699,7 @@ ProjectOperationNode::ProjectOperationNode(NameList *atts, OperationNode *node) 
 
 void ProjectOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
-    child->printNodeInfo();
+    child->printNodeInfo(os);
     os << "project: ";
     os << keepMe[0];
 
@@ -733,7 +733,7 @@ WriteOperationNode::WriteOperationNode(FILE *&outFile, OperationNode *node) : Op
 
 void WriteOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
-    child->printNodeInfo();
+    child->printNodeInfo(os);
     //write the outstream to the outFile
     os << "write out" << endl;
     // os << "Output written to " << outputFile << endl;

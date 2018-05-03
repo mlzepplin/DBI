@@ -329,7 +329,6 @@ void Join::sortMergeJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 	{
 
 		int c = compEngine.Compare(&leftRecord, leftOrder, &rightRecord, rightOrder);
-
 		if (c == 0)
 		{ //found left and right records where left.att==right.att
 
@@ -431,7 +430,7 @@ void *Join::joinHelper()
 	//an acceptable ordering for the given comparison
 	if (selOp->GetSortOrders(leftOrder, rightOrder))
 	{
-
+		cout << "sortmerge join" << endl;
 		sortMergeJoin(&leftOrder, &rightOrder);
 	}
 	else
