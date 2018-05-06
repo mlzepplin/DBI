@@ -38,7 +38,7 @@ class WriteOperationNode;
 class DupRemovalOperationNode;
 class SumOperationNode;
 class ProjectOperationNode;
-
+class SelectOperationNode;
 class QueryPlanner
 {
 
@@ -71,7 +71,6 @@ public:
 
   void planAndBuildJoins();
   void planOperationOrder();
-  void printOperationOrder();
 
   //builders - build the tree in bottom up fashion
   void initLeaves();
@@ -79,6 +78,7 @@ public:
   void buildProject();
   void buildDuplicate();
   void buildWrite();
+  void buildSelectPipe();
 
   //exec the built up plan
   void executeQueryPlanner();
@@ -99,6 +99,7 @@ class OperationNode
   friend class WriteOperationNode;
   friend class DupRemovalOperationNode;
   friend class SumOperationNode;
+  friend class SelectFileOperationNode;
   friend class SelectOperationNode;
   friend class ProjectOperationNode;
 
@@ -170,17 +171,30 @@ public:
   void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
 };
 
-class SelectOperationNode : public AndListBasedOperationNode
+class SelectFileOperationNode : public AndListBasedOperationNode
 {
 private:
   char *aliasName;
   DBFile dbFile;
 
 public:
-  SelectOperationNode(Statistics *&statistics, Schema *outSchema, char *relationName, char *aliasName);
+  SelectFileOperationNode(Statistics *&statistics, Schema *outSchema, char *relationName, char *aliasName);
   bool isValidComparisonOp(ComparisonOp *compOp);
   void printNodeInfo(std::ostream &os, size_t level = 0);
   void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
+};
+
+class SelectOperationNode : public AndListBasedOperationNode
+{
+
+private:
+  char *aliasName;
+
+public:
+  SelectOperationNode(OperationNode *node, AndList *&aList);
+  void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
+  bool isValidComparisonOp(ComparisonOp *compOp);
+  void printNodeInfo(std::ostream &os, size_t level = 0);
 };
 
 class ProjectOperationNode : public OperationNode

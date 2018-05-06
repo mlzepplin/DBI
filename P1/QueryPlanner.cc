@@ -120,7 +120,7 @@ void QueryPlanner::initLeaves()
     {
         statistics->CopyRel(tables->tableName, tables->aliasAs);
         Schema *outSchema = new Schema(catalogPath, tables->tableName, tables->aliasAs);
-        OperationNode *currentNode = new SelectOperationNode(statistics, outSchema, tables->aliasAs, tables->aliasAs);
+        OperationNode *currentNode = new SelectFileOperationNode(statistics, outSchema, tables->aliasAs, tables->aliasAs);
         nodesVector.push_back(currentNode);
         //currentNode->printNodeInfo();
         tables = tables->next;
@@ -132,31 +132,14 @@ void QueryPlanner::planOperationOrder()
     //initLeaves does selection inherently
     initLeaves();
     planAndBuildJoins();
-    buildSum();
-    // buildDuplicate();
+    //buildSelectPipe();
+    // buildSum();
+    //buildDuplicate();
     // buildProject();
-    buildWrite();
-    root->printNodeInfo(this->outStream);
+    //buildWrite();
+    //root->printNodeInfo(this->outStream);
 }
 
-void QueryPlanner::printOperationOrder()
-{
-    // for (int i = 0; i < nodesVector.size(); i++)
-    // {
-    //     string nodeType = nodesVector[i]->getOperationName();
-    //     if (nodeType == "join")
-    //     {
-    //         ((JoinOperationNode *)nodesVector[i])->printNodeInfo(outStream, 0);
-    //     }
-    //     else if (nodeType == "leaf")
-    //     {
-
-    //         ((SelectOperationNode *)nodesVector[i])->printNodeInfo(outStream, 0);
-    //     }
-    //     else
-    //         ;
-    // }
-}
 void QueryPlanner::executeQueryPlanner()
 {
     int totalNodesInTree = root->outPipeId;
@@ -167,23 +150,21 @@ void QueryPlanner::executeQueryPlanner()
 
     root->executeOperation(outPipesList, relopsList);
     //cout << outPipesList[totalNodesInTree - 1]->firstSlot;
+    Record reco;
+    int i = 0;
+    while (i < 10 && outPipesList[root->outPipeId]->Remove(&reco) != 0)
+    {
+        reco.Print(root->outSchema);
+        i++;
+    }
 
-    //clear_pipe(*outPipesList[totalNodesInTree - 1], root->outSchema, true);
     //WAITUNTIL DONE CALLS IN SEQUENTIAL ORDER
     for (int i = 0; i < totalNodesInTree; ++i)
     {
         cout << "w" << i << endl;
         relopsList[i]->WaitUntilDone();
     }
-    clear_pipe(*outPipesList[totalNodesInTree - 1], root->outSchema, true);
 
-    // Record temp;
-    // if (outPipesList[totalNodesInTree - 1]->Remove(&temp))
-    // {
-    //     cout << "root pipe" << endl;
-    //     temp.Print(root->outSchema);
-    // }
-    //OrderMaker(root->outSchema).Print();
     //print to console
     for (int i = 0; i < totalNodesInTree; ++i)
     {
@@ -203,7 +184,10 @@ void QueryPlanner::setOutputMode(char *mode)
 {
     outMode = mode;
 }
-
+void QueryPlanner::buildSelectPipe()
+{
+    root = new SelectOperationNode(root, boolean);
+}
 void QueryPlanner::buildSum()
 {
     //build groupby if grouping attributes are provided
@@ -425,11 +409,48 @@ bool AndListBasedOperationNode::isValidOr(OrList *booleanOrList)
     }
     return false;
 }
-
 //############################################
 //SelectOperationNode
 //############################################
-SelectOperationNode::SelectOperationNode(Statistics *&statistics, Schema *outSchema, char *relationName, char *aliasName) : AndListBasedOperationNode("select")
+SelectOperationNode::SelectOperationNode(OperationNode *node, AndList *&aList) : AndListBasedOperationNode("selectPipe")
+{
+    this->child = node;
+    //this->statistics = statistics;
+    this->outSchema = child->outSchema;
+    //estimatedTuples = numTuples;
+    //cout << "selectPipe" << endl;
+    PrintAndList(aList);
+    this->cnf.GrowFromParseTree(aList, outSchema, literal);
+}
+void SelectOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
+{
+    child->executeOperation(outPipesList, relopsList);
+    SelectPipe *selectPipe = new SelectPipe();
+    relopsList[outPipeId] = selectPipe;
+    outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
+    Record rec;
+    int i = 0;
+    while (outPipesList[child->outPipeId]->Remove(&rec) && i < 100)
+    {
+        cout << "\nselectPipe input: " << endl;
+        rec.Print(child->outSchema);
+        i++;
+    }
+    //will populate outpipe
+    selectPipe->Use_n_Pages(5);
+    selectPipe->Run(*outPipesList[child->outPipeId], *outPipesList[outPipeId], this->cnf, this->literal);
+}
+bool SelectOperationNode::isValidComparisonOp(ComparisonOp *compOp)
+{
+}
+void SelectOperationNode::printNodeInfo(std::ostream &os, size_t level)
+{
+}
+
+//############################################
+//SelectFileOperationNode
+//############################################
+SelectFileOperationNode::SelectFileOperationNode(Statistics *&statistics, Schema *outSchema, char *relationName, char *aliasName) : AndListBasedOperationNode("select")
 {
     this->statistics = statistics;
     this->relationNames[0] = relationName;
@@ -440,7 +461,7 @@ SelectOperationNode::SelectOperationNode(Statistics *&statistics, Schema *outSch
     estimatedTuples = numTuples;
 }
 
-bool SelectOperationNode::isValidComparisonOp(ComparisonOp *compOp)
+bool SelectFileOperationNode::isValidComparisonOp(ComparisonOp *compOp)
 {
     Operand *leftOperand = compOp->left;
     Operand *rightOperand = compOp->right;
@@ -453,7 +474,7 @@ bool SelectOperationNode::isValidComparisonOp(ComparisonOp *compOp)
     return compOp->code != EQUALS;
 }
 
-void SelectOperationNode::printNodeInfo(std::ostream &os, size_t level)
+void SelectFileOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
     os << "select CNF:" << endl;
     cnf.Print();
@@ -463,7 +484,7 @@ void SelectOperationNode::printNodeInfo(std::ostream &os, size_t level)
     os << "Estimate = " << estimatedTuples << endl;
 }
 
-void SelectOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
+void SelectFileOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
 {
     //reading input from table's bin file
     string binFileName = string(binPath) + string(relationNames[0]) + ".bin";
@@ -561,16 +582,18 @@ void JoinOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **rel
     cout << "join" << outPipeId << endl;
     cout << "subAndlist" << endl;
     PrintAndList(aList);
-
-    if (outPipesList[leftOperationNode->outPipeId]->Remove(&rec))
+    int i = 0, j = 0;
+    while (outPipesList[leftOperationNode->outPipeId]->Remove(&rec) && i < 10)
     {
         cout << "\nleft" << endl;
         rec.Print(leftOperationNode->outSchema);
+        i++;
     }
-    if (outPipesList[rightOperationNode->outPipeId]->Remove(&rec))
+    while (outPipesList[rightOperationNode->outPipeId]->Remove(&rec) && j < 10)
     {
         cout << "\nright" << endl;
         rec.Print(rightOperationNode->outSchema);
+        j++;
     }
     Join *join = new Join();
     relopsList[outPipeId] = join;
@@ -650,7 +673,15 @@ void SumOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relo
     Sum *sum = new Sum();
     relopsList[outPipeId] = sum;
     outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
+    cout << "Sum" << endl;
     //will populate outpipe
+    Record rec;
+    if (outPipesList[child->outPipeId]->Remove(&rec))
+    {
+        cout << "\nleft" << endl;
+        rec.Print(child->outSchema);
+    }
+    sum->Use_n_Pages(5);
     sum->Run(*outPipesList[child->outPipeId], *outPipesList[outPipeId], function);
 }
 
@@ -674,6 +705,7 @@ void DupRemovalOperationNode::executeOperation(Pipe **outPipesList, RelationalOp
     relopsList[outPipeId] = duplicateRemoval;
     outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
     //will populate outpipe
+    duplicateRemoval->Use_n_Pages(5);
     duplicateRemoval->Run(*outPipesList[child->outPipeId], *outPipesList[outPipeId], (*this->outSchema));
 }
 
@@ -745,6 +777,12 @@ void WriteOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **re
     WriteOut *writeOut = new WriteOut();
     relopsList[outPipeId] = writeOut;
     outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
+    Record rec;
+    if (outPipesList[child->outPipeId]->Remove(&rec))
+    {
+        cout << "\nwrite's child" << endl;
+        rec.Print(child->outSchema);
+    }
     //will populate outpipe
     writeOut->Run(*outPipesList[child->outPipeId], outputFile, *(this->outSchema));
 }
