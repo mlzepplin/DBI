@@ -56,10 +56,13 @@ int main()
 
 	Statistics *st = new Statistics();
 	//st.Read("Statistics.txt");
-	char *relName[] = {"part", "supplier", "partsupp", "region", "nation", "customer", "orders", "lineitem"};
+	//, "region", "nation", "customer", "orders", "lineitem"
+	//p.p_mfgr
+	char *relName[] = {"part", "supplier", "partsupp", "lineitem"};
 
 	st->AddRel(relName[0], 1500000);
 	st->AddAtt(relName[0], "p_partkey", 150000);
+	st->AddAtt(relName[0], "p_mfgr", 1500);
 
 	st->AddRel(relName[1], 150000);
 	st->AddAtt(relName[1], "s_suppkey", 150000);
@@ -69,6 +72,8 @@ int main()
 	st->AddAtt(relName[2], "ps_partkey", 25);
 	st->AddAtt(relName[2], "ps_suppkey", 150000);
 	st->AddAtt(relName[2], "ps_supplycost", 150000);
+
+	st->AddRel(relName[3], 6001215);
 
 	// st->AddRel(relName[4], 5);
 	// st->AddAtt(relName[4], "r_regionkey", 5);

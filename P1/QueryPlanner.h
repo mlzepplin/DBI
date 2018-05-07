@@ -75,6 +75,7 @@ public:
   //builders - build the tree in bottom up fashion
   void initLeaves();
   void buildSum();
+  void buildOnlySum();
   void buildProject();
   void buildDuplicate();
   void buildWrite();

@@ -209,6 +209,8 @@ void Sum::calculateSum(Pipe *inPipe, Pipe *outPipe, Function *computeMe)
 	}
 	//create an instance of a Record that contains the calculated sum of the given function
 	Record sumRecord(sum);
+	cout << endl;
+	cout << "SUMSUMSUMSUMSUSM" << endl;
 	outPipe->Insert(&sumRecord);
 }
 

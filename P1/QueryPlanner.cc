@@ -116,6 +116,7 @@ void QueryPlanner::initLeaves()
 {
     // statistics->Read(inFilePath);
     //driver for testing: used when the stats object is already populated from text file
+    int i = 0;
     while (tables != NULL)
     {
         statistics->CopyRel(tables->tableName, tables->aliasAs);
@@ -124,7 +125,10 @@ void QueryPlanner::initLeaves()
         nodesVector.push_back(currentNode);
         //currentNode->printNodeInfo();
         tables = tables->next;
+        i++;
     }
+    if (i == 1)
+        root == nodesVector[0];
 }
 
 void QueryPlanner::planOperationOrder()
@@ -132,8 +136,8 @@ void QueryPlanner::planOperationOrder()
     //initLeaves does selection inherently
     initLeaves();
     planAndBuildJoins();
-    //buildSelectPipe();
-    // buildSum();
+    buildSelectPipe();
+    //buildOnlySum();
     //buildDuplicate();
     // buildProject();
     //buildWrite();
@@ -149,24 +153,27 @@ void QueryPlanner::executeQueryPlanner()
     RelationalOp **relopsList = new RelationalOp *[totalNodesInTree];
 
     root->executeOperation(outPipesList, relopsList);
-    //cout << outPipesList[totalNodesInTree - 1]->firstSlot;
     Record reco;
     int i = 0;
-    while (i < 10 && outPipesList[root->outPipeId]->Remove(&reco) != 0)
+    while (outPipesList[root->outPipeId]->Remove(&reco) != 0 && i < 100)
     {
         cout << endl;
         cout << "##############################" << endl;
         reco.Print(root->outSchema);
         i++;
     }
-
+    cout << "num records" << i << endl;
     //WAITUNTIL DONE CALLS IN SEQUENTIAL ORDER
-    for (int i = 0; i < totalNodesInTree; ++i)
+    // for (int i = 0; i < totalNodesInTree; ++i)
+    // {
+    //     cout << "w" << i << endl;
+    //     relopsList[i]->WaitUntilDone();
+    // }
+    for (int i = totalNodesInTree - 1; i >= 0; --i)
     {
         cout << "w" << i << endl;
         relopsList[i]->WaitUntilDone();
     }
-
     //print to console
     for (int i = 0; i < totalNodesInTree; ++i)
     {
@@ -189,6 +196,11 @@ void QueryPlanner::setOutputMode(char *mode)
 void QueryPlanner::buildSelectPipe()
 {
     root = new SelectOperationNode(root, boolean);
+}
+void QueryPlanner::buildOnlySum()
+{
+    if (finalFunction)
+        root = new SumOperationNode(finalFunction, root);
 }
 void QueryPlanner::buildSum()
 {
@@ -307,7 +319,7 @@ void QueryPlanner::planAndBuildJoins()
     // {
     //     joinVector[i]->printNodeInfo();
     // }
-    root = joinVector[joinVector.size() - 1];
+    root = nodesVector[nodesVector.size() - 1];
 }
 
 void QueryPlanner::buildProject()
@@ -420,7 +432,7 @@ SelectOperationNode::SelectOperationNode(OperationNode *node, AndList *&aList) :
     //this->statistics = statistics;
     this->outSchema = child->outSchema;
     //estimatedTuples = numTuples;
-    //cout << "selectPipe" << endl;
+    cout << "selectPipe" << endl;
     PrintAndList(aList);
     this->cnf.GrowFromParseTree(aList, outSchema, literal);
 }
@@ -432,12 +444,12 @@ void SelectOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **r
     outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
     Record rec;
     int i = 0;
-    while (outPipesList[child->outPipeId]->Remove(&rec) && i < 100)
-    {
-        cout << "\nselectPipe input: " << endl;
-        rec.Print(child->outSchema);
-        i++;
-    }
+    // while (outPipesList[child->outPipeId]->Remove(&rec) && i < 10)
+    // {
+    //     cout << "\nselectPipe input: " << endl;
+    //     rec.Print(child->outSchema);
+    //     i++;
+    // }
     //will populate outpipe
     selectPipe->Use_n_Pages(5);
     selectPipe->Run(*outPipesList[child->outPipeId], *outPipesList[outPipeId], this->cnf, this->literal);
@@ -649,7 +661,7 @@ void GroupByOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **
 //############################################
 SumOperationNode::SumOperationNode(FuncOperator *parseTree, OperationNode *node) : OperationNode("sum")
 {
-    this->function.GrowFromParseTree(parseTree, *node->outSchema);
+    //this->function.GrowFromParseTree(parseTree, *node->outSchema);
     this->outSchema = buildOutSchema(parseTree, node);
     this->child = node;
 }
@@ -678,8 +690,10 @@ void SumOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relo
     cout << "Sum" << endl;
     //will populate outpipe
     Record rec;
-    if (outPipesList[child->outPipeId]->Remove(&rec))
+    int i = 0;
+    while (outPipesList[child->outPipeId]->Remove(&rec) && i < 10)
     {
+        i++;
         cout << "\nleft" << endl;
         rec.Print(child->outSchema);
     }
@@ -707,8 +721,16 @@ void DupRemovalOperationNode::executeOperation(Pipe **outPipesList, RelationalOp
     relopsList[outPipeId] = duplicateRemoval;
     outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
     //will populate outpipe
+    int i = 0;
+    Record rec;
+    while (outPipesList[child->outPipeId]->Remove(&rec) && i < 10)
+    {
+        i++;
+        cout << "\nleft" << endl;
+        rec.Print(child->outSchema);
+    }
     duplicateRemoval->Use_n_Pages(5);
-    duplicateRemoval->Run(*outPipesList[child->outPipeId], *outPipesList[outPipeId], (*this->outSchema));
+    duplicateRemoval->Run(*outPipesList[child->outPipeId], *outPipesList[outPipeId], *(this->outSchema));
 }
 
 //############################################
