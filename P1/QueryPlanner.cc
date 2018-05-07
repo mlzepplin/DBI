@@ -154,6 +154,8 @@ void QueryPlanner::executeQueryPlanner()
     int i = 0;
     while (i < 10 && outPipesList[root->outPipeId]->Remove(&reco) != 0)
     {
+        cout << endl;
+        cout << "##############################" << endl;
         reco.Print(root->outSchema);
         i++;
     }
@@ -600,7 +602,7 @@ void JoinOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **rel
     outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
     //will populate outpipe
     join->Use_n_Pages(5);
-    join->Run(*outPipesList[leftOperationNode->outPipeId], *outPipesList[rightOperationNode->outPipeId], *outPipesList[outPipeId], this->cnf, this->literal);
+    join->Run(*outPipesList[leftOperationNode->outPipeId], *outPipesList[rightOperationNode->outPipeId], *outPipesList[outPipeId], this->cnf, this->literal, *(leftOperationNode->outSchema), *(rightOperationNode->outSchema));
 }
 
 //############################################

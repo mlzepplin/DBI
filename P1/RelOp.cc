@@ -389,22 +389,27 @@ void Join::blockNestedLoopJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 	// Writeout right table (ideally,should choose the smaller), to disk
 	HeapFile rightFile;
 	rightFile.Create("blockNestedLoopJoinTempFile.bin", NULL);
-
+	cout << "RIGHT PIPE RECS" << endl;
 	while (rightInPipe->Remove(&temp))
 	{
+		// temp.Print(rSchema);
 		rightFile.Add(temp);
 	}
-
+	cout << "LEFT PIPE RECS" << endl;
 	while (leftInPipe->Remove(&temp))
 	{
 		//write left pipe to buffer as much as possible
+		// temp.Print(lSchema);
 		while (joinMemBuffer->addRecord(temp))
-			;
-		cout << endl
-			 << endl;
-		cout << "joinMemBuffersize" << joinMemBuffer->size() << endl;
-		cout << endl
-			 << endl;
+		{
+			if (leftInPipe->Remove(&temp) == 0)
+				break;
+		}
+		// cout << endl
+		// 	 << endl;
+		// cout << "joinMemBuffersize" << joinMemBuffer->size() << endl;
+		// cout << endl
+		// 	 << endl;
 		//join/cross the buffer load with all records from rightFile
 		while (rightFile.GetNext(rightRecord))
 		{
@@ -413,7 +418,7 @@ void Join::blockNestedLoopJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 
 				if (compEngine.Compare(joinMemBuffer->getRecord(i), &rightRecord, literal, selOp))
 				{
-					cout << i << endl;
+
 					mergedRecord.atomicMerge(joinMemBuffer->getRecord(i), &rightRecord);
 					outPipe->Insert(&mergedRecord);
 				}
@@ -453,7 +458,7 @@ void *Join::joinStaticHelper(void *join)
 	j->joinHelper();
 }
 
-void Join::Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal)
+void Join::Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal, Schema &lSchema, Schema &rSchema)
 {
 	this->leftInPipe = &inPipeL;
 	this->rightInPipe = &inPipeR;
@@ -461,6 +466,8 @@ void Join::Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &
 	this->selOp = &selOp;
 	this->literal = &literal;
 	this->joinMemBuffer = new JoinMemBuffer(numPages);
+	this->lSchema = &lSchema;
+	this->rSchema = &rSchema;
 
 	int w = pthread_create(&thread, NULL, joinStaticHelper, (void *)this);
 	if (w)
@@ -530,7 +537,10 @@ bool JoinMemBuffer::addRecord(Record &rec)
 {
 	if (buffer.size() + 1 > maxSize)
 		return false;
-	buffer.push_back(&rec);
+	Record *pushMe;
+	pushMe = new Record();
+	pushMe->Consume(&rec);
+	buffer.push_back(pushMe);
 	return true;
 }
 Record *JoinMemBuffer::getRecord(int index)
@@ -543,5 +553,10 @@ int JoinMemBuffer::size()
 }
 void JoinMemBuffer::clear()
 {
+	for (int i = 0; i < buffer.size(); i++)
+	{
+		buffer[i] = NULL;
+		delete (buffer[i]);
+	}
 	buffer.clear();
 }

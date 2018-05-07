@@ -557,7 +557,6 @@ void Record::atomicMerge(Record *leftRecord, Record *rightRecord)
 	{
 		attsToKeep[i] = i;
 	}
-
 	for (int i = 0; i < rightNumAtts; ++i)
 	{
 		attsToKeep[i + leftNumAtts] = i;
