@@ -38,7 +38,8 @@ class WriteOperationNode;
 class DupRemovalOperationNode;
 class SumOperationNode;
 class ProjectOperationNode;
-class SelectOperationNode;
+class SelectAfterJoinOperationNode;
+
 class QueryPlanner
 {
 
@@ -69,11 +70,11 @@ public:
     this->statistics = statistics;
   }
 
-  void planAndBuildJoins();
   void planOperationOrder();
 
   //builders - build the tree in bottom up fashion
-  void initLeaves();
+  void buildSelectFile();
+  void planAndBuildJoins();
   void buildSum();
   void buildOnlySum();
   void buildProject();
@@ -101,7 +102,7 @@ class OperationNode
   friend class DupRemovalOperationNode;
   friend class SumOperationNode;
   friend class SelectFileOperationNode;
-  friend class SelectOperationNode;
+  friend class SelectAfterJoinOperationNode;
   friend class ProjectOperationNode;
 
 protected:
@@ -114,7 +115,6 @@ protected:
   int outPipeId;
   static int pipeId;
 
-  Statistics *statistics;
   int estimatedTuples;
   int numTuples;
   OperationNode *child;
@@ -127,8 +127,6 @@ public:
   //constructors
   OperationNode(string operationName);
   OperationNode(string operationName, Schema *outSchema);
-  OperationNode(string operationName, Statistics *statistics);
-  OperationNode(string operationName, Statistics *statistics, Schema *outSchema);
   int getNumTuples() { return numTuples; }
   // OperationNode(string operationName, Schema *outSchema, string, Statistics *statistics);
   // OperationNode(string operationName, Schema *outSchema, vector<string>, Statistics *statistics);
@@ -146,9 +144,10 @@ protected:
   CNF cnf;
   Record literal;
   AndList *aList;
+  Statistics *statistics;
 
 public:
-  AndListBasedOperationNode(string operationName);
+  AndListBasedOperationNode(string operationName, Statistics *statistics);
   AndList *buildSubAndList(AndList *&boolean);
   bool isValidOr(OrList *orList);
   virtual bool isValidComparisonOp(ComparisonOp *compOp) = 0;
@@ -164,12 +163,13 @@ private:
   OperationNode *rightOperationNode;
 
 public:
-  JoinOperationNode(OperationNode *node1, OperationNode *node2);
+  JoinOperationNode(OperationNode *node1, OperationNode *node2, AndList *&aList, Statistics *statistics);
   void printNodeInfo(std::ostream &os, size_t level = 0);
   void combineRelNames();
   void populateJoinOutSchema();
   bool isValidComparisonOp(ComparisonOp *compOp);
   void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
+  void estimateAndApply();
 };
 
 class SelectFileOperationNode : public AndListBasedOperationNode
@@ -179,20 +179,20 @@ private:
   DBFile dbFile;
 
 public:
-  SelectFileOperationNode(Statistics *&statistics, Schema *outSchema, char *relationName, char *aliasName);
+  SelectFileOperationNode(Schema *outSchema, AndList *&aList, char *relationName, char *aliasName, Statistics *statistics);
   bool isValidComparisonOp(ComparisonOp *compOp);
   void printNodeInfo(std::ostream &os, size_t level = 0);
   void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
 };
 
-class SelectOperationNode : public AndListBasedOperationNode
+class SelectAfterJoinOperationNode : public AndListBasedOperationNode
 {
 
 private:
   char *aliasName;
 
 public:
-  SelectOperationNode(OperationNode *node, AndList *&aList);
+  SelectAfterJoinOperationNode(OperationNode *node, AndList *&aList, Statistics *statistics);
   void executeOperation(Pipe **outPipesList, RelationalOp **relopsList);
   bool isValidComparisonOp(ComparisonOp *compOp);
   void printNodeInfo(std::ostream &os, size_t level = 0);

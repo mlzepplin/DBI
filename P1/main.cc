@@ -6,8 +6,9 @@
 
 using namespace std;
 
-extern "C" {
-int yyparse(void); // defined in y.tab.c
+extern "C"
+{
+	int yyparse(void); // defined in y.tab.c
 }
 
 int main()
@@ -74,6 +75,13 @@ int main()
 	st->AddAtt(relName[2], "ps_supplycost", 150000);
 
 	st->AddRel(relName[3], 6001215);
+	st->AddAtt(relName[3], "l_orderkey", 15000);
+	st->AddAtt(relName[3], "l_partkey", 15000);
+	st->AddAtt(relName[3], "l_suppkey", 15000);
+	st->AddAtt(relName[3], "l_returnflag", 15000);
+	st->AddAtt(relName[3], "l_discount", 15000);
+	st->AddAtt(relName[3], "l_shipmode", 15000);
+	st->AddAtt(relName[3], "l_orderkey", 15000);
 
 	// st->AddRel(relName[4], 5);
 	// st->AddAtt(relName[4], "r_regionkey", 5);

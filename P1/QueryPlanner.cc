@@ -112,18 +112,16 @@ int clear_pipe(Pipe &in_pipe, Schema *schema, Function &func, bool print)
     return cnt;
 }
 
-void QueryPlanner::initLeaves()
+void QueryPlanner::buildSelectFile()
 {
-    // statistics->Read(inFilePath);
-    //driver for testing: used when the stats object is already populated from text file
     int i = 0;
     while (tables != NULL)
     {
         statistics->CopyRel(tables->tableName, tables->aliasAs);
         Schema *outSchema = new Schema(catalogPath, tables->tableName, tables->aliasAs);
-        OperationNode *currentNode = new SelectFileOperationNode(statistics, outSchema, tables->aliasAs, tables->aliasAs);
+        OperationNode *currentNode = new SelectFileOperationNode(outSchema, boolean, tables->aliasAs, tables->aliasAs, statistics);
+        // ((SelectFileOperationNode *)currentNode)->buildSubAndList(boolean);
         nodesVector.push_back(currentNode);
-        //currentNode->printNodeInfo();
         tables = tables->next;
         i++;
     }
@@ -133,13 +131,12 @@ void QueryPlanner::initLeaves()
 
 void QueryPlanner::planOperationOrder()
 {
-    //initLeaves does selection inherently
-    initLeaves();
+    buildSelectFile();
     planAndBuildJoins();
-    buildSelectPipe();
+    //buildSelectPipe();
     //buildOnlySum();
     //buildDuplicate();
-    // buildProject();
+    //buildProject();
     //buildWrite();
     //root->printNodeInfo(this->outStream);
 }
@@ -151,24 +148,18 @@ void QueryPlanner::executeQueryPlanner()
     //SO THAT WE CAN PLAY AROUND WITH THE SEQUENCE, OF RELOPS, WITH THEIR WAITUNTILDONES
     Pipe **outPipesList = new Pipe *[totalNodesInTree];
     RelationalOp **relopsList = new RelationalOp *[totalNodesInTree];
-
     root->executeOperation(outPipesList, relopsList);
     Record reco;
     int i = 0;
-    while (outPipesList[root->outPipeId]->Remove(&reco) != 0 && i < 100)
+
+    while (outPipesList[root->outPipeId]->Remove(&reco) != 0 && i < 200)
     {
-        cout << endl;
-        cout << "##############################" << endl;
-        reco.Print(root->outSchema);
+        // cout << endl;
+        // cout << "##############################" << endl;
+        // reco.Print(root->outSchema);
         i++;
     }
-    cout << "num records" << i << endl;
-    //WAITUNTIL DONE CALLS IN SEQUENTIAL ORDER
-    // for (int i = 0; i < totalNodesInTree; ++i)
-    // {
-    //     cout << "w" << i << endl;
-    //     relopsList[i]->WaitUntilDone();
-    // }
+    cout << "num records: " << i << endl;
     for (int i = totalNodesInTree - 1; i >= 0; --i)
     {
         cout << "w" << i << endl;
@@ -195,7 +186,7 @@ void QueryPlanner::setOutputMode(char *mode)
 }
 void QueryPlanner::buildSelectPipe()
 {
-    root = new SelectOperationNode(root, boolean);
+    root = new SelectAfterJoinOperationNode(root, boolean, statistics);
 }
 void QueryPlanner::buildOnlySum()
 {
@@ -284,13 +275,7 @@ void QueryPlanner::buildDuplicate()
 }
 void QueryPlanner::planAndBuildJoins()
 {
-
-    vector<OperationNode *>::iterator nodesVecIter;
-    //required for printing purposes
-
     double estimate = 0.0;
-    Statistics statsCopy = *statistics; //making a deep copy
-
     //sort in decending order on numTuples
     std::sort(nodesVector.begin(), nodesVector.end(), cmp);
 
@@ -303,22 +288,19 @@ void QueryPlanner::planAndBuildJoins()
         nodesVector.pop_back();
 
         //constructing new JoinNode which inherently updates relNames,numRelations,outSchema as well
-        JoinOperationNode *joinNode = new JoinOperationNode(node1, node2);
-        //populate subAndlist
-        AndList *subAndList = joinNode->buildSubAndList(boolean);
+        JoinOperationNode *joinNode = new JoinOperationNode(node1, node2, boolean, statistics);
 
-        //joinNode->cnf.GrowFromParseTree(subAndList, node1->outSchema, node2->outSchema, joinNode->literal);
-        //apply and estimate
-        joinNode->estimatedTuples = statsCopy.Estimate(subAndList, joinNode->relationNames, joinNode->numRelations);
-        statsCopy.Apply(subAndList, joinNode->relationNames, joinNode->numRelations);
+        //joinNode Estimate and Apply, will update QueryPlanner's statistics accordingly
+        joinNode->estimateAndApply();
 
         nodesVector.push_back((OperationNode *)joinNode);
-        joinVector.push_back(joinNode);
+        joinVector.push_back(joinNode); //only there for printing purposes
     }
     // for (int i = joinVector.size() - 1; i >= 0; i--)
     // {
     //     joinVector[i]->printNodeInfo();
     // }
+    //Assign root to the final join
     root = nodesVector[nodesVector.size() - 1];
 }
 
@@ -339,21 +321,6 @@ OperationNode::OperationNode(string operationName)
     this->outPipeId = pipeId++;
 }
 
-OperationNode::OperationNode(string operationName, Statistics *statistics)
-{
-    this->operationName = operationName;
-    this->statistics = statistics;
-    this->outPipeId = pipeId++;
-}
-
-OperationNode::OperationNode(string operationName, Statistics *statistics, Schema *outSchema)
-{
-    this->operationName = operationName;
-    this->statistics = statistics;
-    this->outSchema = outSchema;
-    this->outPipeId = pipeId++;
-}
-
 OperationNode::OperationNode(string operationName, Schema *outSchema)
 {
     this->operationName = operationName;
@@ -369,8 +336,9 @@ std::string OperationNode::getOperationName()
 //############################################
 //AndListBasedOperationNode
 //############################################
-AndListBasedOperationNode::AndListBasedOperationNode(string operationName) : OperationNode(operationName)
+AndListBasedOperationNode::AndListBasedOperationNode(string operationName, Statistics *statistics) : OperationNode(operationName)
 {
+    this->statistics = statistics;
 }
 
 AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean)
@@ -383,17 +351,16 @@ AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean)
     AndList *previous = &head;
     AndList *current = head.rightAnd;
 
-    //GOAL:: parse the boolean and trim all rrelevance out
-    //and append that relevance to subndList
+    //GOAL:: parse the boolean and trim all relevance out
+    //and append that relevance to a new subndList
     while (current != NULL)
     {
-
         if (isValidOr(current->left))
         { //if matched, trim it out and add it to the subAndList
             previous->rightAnd = current->rightAnd;
             current->rightAnd = subAndList;
             subAndList = current;
-            current = current->rightAnd;
+            current = previous->rightAnd;
         }
         else
         { //skip current and let it remain in boolean
@@ -403,6 +370,7 @@ AndList *AndListBasedOperationNode::buildSubAndList(AndList *&boolean)
     }
     //removing the initial dummy node that was added just to init previous
     boolean = head.rightAnd;
+    //Assign the built AndList to the aList of node
     this->aList = subAndList;
     return subAndList;
 }
@@ -413,7 +381,6 @@ bool AndListBasedOperationNode::isValidOr(OrList *booleanOrList)
 
     while (booleanOrList)
     {
-        //cout << "in is or while" << endl;
         if (isValidComparisonOp(compOp))
         {
             return true;
@@ -423,54 +390,55 @@ bool AndListBasedOperationNode::isValidOr(OrList *booleanOrList)
     }
     return false;
 }
+
 //############################################
-//SelectOperationNode
+//SelectAfterJoinOperationNode
 //############################################
-SelectOperationNode::SelectOperationNode(OperationNode *node, AndList *&aList) : AndListBasedOperationNode("selectPipe")
+SelectAfterJoinOperationNode::SelectAfterJoinOperationNode(OperationNode *node, AndList *&aList, Statistics *statistics) : AndListBasedOperationNode("selectPipe", statistics)
 {
     this->child = node;
-    //this->statistics = statistics;
     this->outSchema = child->outSchema;
-    //estimatedTuples = numTuples;
+    buildSubAndList(aList); //populates this->aList internally
+    cout << endl;
     cout << "selectPipe" << endl;
     PrintAndList(aList);
-    this->cnf.GrowFromParseTree(aList, outSchema, literal);
+    this->cnf.GrowFromParseTree(this->aList, outSchema, literal);
 }
-void SelectOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
+void SelectAfterJoinOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
 {
     child->executeOperation(outPipesList, relopsList);
     SelectPipe *selectPipe = new SelectPipe();
     relopsList[outPipeId] = selectPipe;
     outPipesList[outPipeId] = new Pipe(PIPE_SIZE);
     Record rec;
-    int i = 0;
-    // while (outPipesList[child->outPipeId]->Remove(&rec) && i < 10)
-    // {
-    //     cout << "\nselectPipe input: " << endl;
-    //     rec.Print(child->outSchema);
-    //     i++;
-    // }
-    //will populate outpipe
     selectPipe->Use_n_Pages(5);
     selectPipe->Run(*outPipesList[child->outPipeId], *outPipesList[outPipeId], this->cnf, this->literal);
 }
-bool SelectOperationNode::isValidComparisonOp(ComparisonOp *compOp)
+bool SelectAfterJoinOperationNode::isValidComparisonOp(ComparisonOp *compOp)
 {
+    Operand *leftOperand = compOp->left;
+    Operand *rightOperand = compOp->right;
+
+    bool leftAttInSchema = (outSchema->Find(leftOperand->value) != -1) ? true : false;
+    bool rightAttInSchema = (outSchema->Find(rightOperand->value) != -1) ? true : false;
+
+    return (leftOperand->code == NAME && rightOperand->code == NAME && (compOp->code != EQUALS) && leftAttInSchema && rightAttInSchema);
 }
-void SelectOperationNode::printNodeInfo(std::ostream &os, size_t level)
+void SelectAfterJoinOperationNode::printNodeInfo(std::ostream &os, size_t level)
 {
 }
 
 //############################################
 //SelectFileOperationNode
 //############################################
-SelectFileOperationNode::SelectFileOperationNode(Statistics *&statistics, Schema *outSchema, char *relationName, char *aliasName) : AndListBasedOperationNode("select")
+SelectFileOperationNode::SelectFileOperationNode(Schema *outSchema, AndList *&andList, char *relationName, char *aliasName, Statistics *statistics) : AndListBasedOperationNode("select", statistics)
 {
-    this->statistics = statistics;
     this->relationNames[0] = relationName;
     this->aliasName = aliasName;
     this->outSchema = outSchema;
-    numRelations = 1;
+    this->numRelations = 1;
+    buildSubAndList(andList); //populates this->aList internally
+    this->cnf.GrowFromParseTree(aList, outSchema, literal);
     numTuples = statistics->getNumTuplesOfRelation(relationNames[0]);
     estimatedTuples = numTuples;
 }
@@ -479,13 +447,7 @@ bool SelectFileOperationNode::isValidComparisonOp(ComparisonOp *compOp)
 {
     Operand *leftOperand = compOp->left;
     Operand *rightOperand = compOp->right;
-    //return (leftOperand->code == NAME && rightOperand->code != NAME && (schema->Find(leftOperand->value) != -1));
-    bool leftAttInSchema = (outSchema->Find(leftOperand->value) != -1) ? true : false;
-    bool rightAttInSchema = (outSchema->Find(rightOperand->value) != -1) ? true : false;
-    if (rightOperand->code != NAME)
-        return leftAttInSchema;
-
-    return compOp->code != EQUALS;
+    return (leftOperand->code == NAME && rightOperand->code != NAME && (outSchema->Find(leftOperand->value) != -1));
 }
 
 void SelectFileOperationNode::printNodeInfo(std::ostream &os, size_t level)
@@ -514,12 +476,18 @@ void SelectFileOperationNode::executeOperation(Pipe **outPipesList, RelationalOp
 //############################################
 //Join Operation Node
 //############################################
-JoinOperationNode::JoinOperationNode(OperationNode *node1, OperationNode *node2) : AndListBasedOperationNode("join")
+JoinOperationNode::JoinOperationNode(OperationNode *node1, OperationNode *node2, AndList *&aList, Statistics *statistics) : AndListBasedOperationNode("join", statistics)
 {
     leftOperationNode = node1;
     rightOperationNode = node2;
     combineRelNames();
     populateJoinOutSchema();
+    buildSubAndList(aList); //populates this->aList internally
+}
+void JoinOperationNode::estimateAndApply()
+{
+    estimatedTuples = statistics->Estimate(aList, relationNames, numRelations);
+    statistics->Apply(aList, relationNames, numRelations);
 }
 
 bool JoinOperationNode::isValidComparisonOp(ComparisonOp *compOp)
@@ -535,7 +503,7 @@ bool JoinOperationNode::isValidComparisonOp(ComparisonOp *compOp)
 
 void JoinOperationNode::populateJoinOutSchema()
 {
-    //go through all the table names, get their alias from aliasmappings
+    //go through all the table names, get their alias from alias mappings
     //find their attributes from the relation map and build outschema
     int leftNumAtts = leftOperationNode->outSchema->GetNumAtts();
     int rightNumAtts = rightOperationNode->outSchema->GetNumAtts();
@@ -550,9 +518,7 @@ void JoinOperationNode::populateJoinOutSchema()
     for (int j = 0; i < numTotalAtts; i++, j++)
         joinAttList[i] = rightAttList[j];
 
-    //Schema outSchema(catalogPath, numTotalAtts, joinAttList);
     this->outSchema = new Schema(catalogPath, numTotalAtts, joinAttList);
-    // cout << "numatts join " << this->outSchema->GetNumAtts() << endl;
 }
 
 void JoinOperationNode::combineRelNames()
