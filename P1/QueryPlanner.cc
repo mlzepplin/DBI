@@ -112,23 +112,6 @@ int clear_pipe(Pipe &in_pipe, Schema *schema, Function &func, bool print)
     return cnt;
 }
 
-void QueryPlanner::buildSelectFile()
-{
-    int i = 0;
-    while (tables != NULL)
-    {
-        statistics->CopyRel(tables->tableName, tables->aliasAs);
-        Schema *outSchema = new Schema(catalogPath, tables->tableName, tables->aliasAs);
-        OperationNode *currentNode = new SelectFileOperationNode(outSchema, boolean, tables->aliasAs, tables->aliasAs, statistics);
-        // ((SelectFileOperationNode *)currentNode)->buildSubAndList(boolean);
-        nodesVector.push_back(currentNode);
-        tables = tables->next;
-        i++;
-    }
-    if (i == 1)
-        root == nodesVector[0];
-}
-
 void QueryPlanner::planOperationOrder()
 {
     buildSelectFile();
@@ -184,6 +167,23 @@ void QueryPlanner::setOutputMode(char *mode)
 {
     outMode = mode;
 }
+
+void QueryPlanner::buildSelectFile()
+{
+    int i = 0;
+    while (tables != NULL)
+    {
+        statistics->CopyRel(tables->tableName, tables->aliasAs);
+        Schema *outSchema = new Schema(catalogPath, tables->tableName, tables->aliasAs);
+        OperationNode *currentNode = new SelectFileOperationNode(outSchema, boolean, tables->tableName, tables->aliasAs, statistics);
+        nodesVector.push_back(currentNode);
+        tables = tables->next;
+        i++;
+    }
+    if (i == 1)
+        root == nodesVector[0];
+}
+
 void QueryPlanner::buildSelectPipe()
 {
     root = new SelectAfterJoinOperationNode(root, boolean, statistics);
@@ -439,7 +439,7 @@ SelectFileOperationNode::SelectFileOperationNode(Schema *outSchema, AndList *&an
     this->numRelations = 1;
     buildSubAndList(andList); //populates this->aList internally
     this->cnf.GrowFromParseTree(aList, outSchema, literal);
-    numTuples = statistics->getNumTuplesOfRelation(relationNames[0]);
+    numTuples = statistics->getNumTuplesOfRelation(aliasName);
     estimatedTuples = numTuples;
 }
 
@@ -462,7 +462,7 @@ void SelectFileOperationNode::printNodeInfo(std::ostream &os, size_t level)
 
 void SelectFileOperationNode::executeOperation(Pipe **outPipesList, RelationalOp **relopsList)
 {
-    //reading input from table's bin file
+    //reading input from table's bin file [and not alias's]
     string binFileName = string(binPath) + string(relationNames[0]) + ".bin";
     cout << "select: " << binFileName << endl;
     dbFile.Open((char *)binFileName.c_str());
