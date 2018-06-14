@@ -103,6 +103,14 @@ OrderMaker ::OrderMaker(Schema *schema)
 	}
 }
 
+void OrderMaker::growFromParseTree(NameList *groupingAtts, Schema *inputSchema)
+{
+	for (; groupingAtts; groupingAtts = groupingAtts->next, numAtts++)
+	{
+		whichTypes[numAtts] = inputSchema->FindType(groupingAtts->name);
+	}
+}
+
 void OrderMaker ::Print()
 {
 	printf("NumAtts = %5d\n", numAtts);
@@ -131,9 +139,9 @@ std::ostream &operator<<(std::ostream &os, const OrderMaker &order)
 
 // std::ostream& operator<<(std::ostream& os, const OrderMaker& order) {
 //   os << order.numAtts << ' ';
-//   for(int i=0; i<order.numAtts; ++i) 
+//   for(int i=0; i<order.numAtts; ++i)
 //   	os << order.whichAtts[i] << ' ';
-//   for(int i=0; i<order.numAtts; ++i) 
+//   for(int i=0; i<order.numAtts; ++i)
 //   	os << order.whichTypes[i] << ' ';
 //   os << std::endl;
 //   return os;
@@ -141,7 +149,7 @@ std::ostream &operator<<(std::ostream &os, const OrderMaker &order)
 
 // std::istream& operator>>(std::istream& is, OrderMaker& order) {
 //   is >> order.numAtts;
-//   for(int i=0; i<order.numAtts; ++i) 
+//   for(int i=0; i<order.numAtts; ++i)
 //   	is >> order.whichAtts[i];
 //   for(int i=0; i<order.numAtts; ++i) {
 //     int t; is >> t;
@@ -155,7 +163,7 @@ void OrderMaker::buildQueryOrder(const OrderMaker &sortOrder, CNF &query, OrderM
 
 	OrderMaker dummy;
 	queryOrder.numAtts = 0;
-	
+
 	query.GetSortOrders(cnfOrder, dummy);
 
 	for (int i = 0; i < sortOrder.numAtts; i++)
@@ -166,7 +174,7 @@ void OrderMaker::buildQueryOrder(const OrderMaker &sortOrder, CNF &query, OrderM
 			queryOrder.whichAtts[queryOrder.numAtts] = i;
 			queryOrder.whichTypes[queryOrder.numAtts] = sortOrder.whichTypes[i];
 			//cnfOrder.whichAtts[cnfOrder.numAtts] = attLocation;
-			//cnfOrder.whichTypes[cnfOrder.numAtts] = 
+			//cnfOrder.whichTypes[cnfOrder.numAtts] =
 			queryOrder.numAtts++;
 			//cnfOrder.numAtts++;
 		}

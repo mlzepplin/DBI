@@ -11,7 +11,7 @@ Statistics::Statistics()
 
 Statistics::Statistics(Statistics &copyMe)
 { //copy constructor, creating a deep copy
-
+    relationMap = new unordered_map<string, RelationInfo>();
     for (unordered_map<string, RelationInfo>::iterator relItr = copyMe.relationMap->begin(); relItr != copyMe.relationMap->end(); relItr++)
     {
         string relName = relItr->first;
@@ -22,7 +22,7 @@ Statistics::Statistics(Statistics &copyMe)
         {
             string attName = attItr->first;
             int numDistinct = attItr->second;
-            relationInfo.attributeMap.insert(pair<std::string, int>(attName, numDistinct));
+            relationInfo.attributeMap.insert(std::make_pair(attName, numDistinct));
         }
 
         relationMap->insert(pair<std::string, RelationInfo>(relName, relationInfo));
@@ -84,7 +84,34 @@ void Statistics::AddAtt(char *relName, char *attName, int numDistincts)
         }
     }
 }
+int Statistics::getNumTuples(string relationName)
+{
+    if (relationMap->find(relationName) != relationMap->end())
+    {
+        return relationMap->find(relationName)->second.numTuples;
+    }
+    return -1;
+}
 
+vector<string> Statistics::getAllAttsNames()
+{
+    vector<string> allAtts;
+    RelMapIter relIter = relationMap->begin();
+    AttMapIter attIter;
+    while (relIter != relationMap->end())
+    {
+        unordered_map<string, int> attMap = relIter->second.attributeMap;
+        attIter = attMap.begin();
+        while (attIter != attMap.end())
+        {
+            allAtts.push_back(attIter->first);
+            attIter++;
+        }
+
+        relIter++;
+    }
+    return allAtts;
+}
 void Statistics::CopyRel(char *oldName, char *newName)
 {
     AttMapIter attMapIter;
@@ -262,6 +289,23 @@ string Statistics::getRelationOfAtt(string attName, char *relNames[], int numToJ
     cerr << "attribute: " << attName << "- cannot be found in relationMap" << endl;
     exit(1);
 }
+int Statistics::getNumTuplesOfRelation(char *relName)
+{
+    //assumes that attribute does exist in atleast one relation
+    unordered_map<string, RelationInfo>::iterator relMapIter;
+    int numTuples = 0;
+    for (relMapIter = relationMap->begin(); relMapIter != relationMap->end(); relMapIter++)
+    {
+        unordered_set<string> tokens = tokeniseKeyToSet(relMapIter->first);
+        if (tokens.find(relName) != tokens.end())
+        {
+            numTuples = relMapIter->second.numTuples;
+            break;
+        }
+    }
+
+    return numTuples;
+}
 
 int Statistics::getNumTuples(string attName, char *relNames[], int numToJoin, int &numDistincts)
 {
@@ -284,7 +328,7 @@ int Statistics::getNumTuples(string attName, char *relNames[], int numToJoin, in
     return relMapIter->second.numTuples;
 }
 
-vector<string> Statistics::tokeniseKey(string input)
+vector<string> Statistics::tokeniseKeyToVec(string input)
 {
     vector<string> tokens;
     stringstream check1(input);
@@ -292,6 +336,17 @@ vector<string> Statistics::tokeniseKey(string input)
     while (getline(check1, intermediate, '|'))
     {
         tokens.push_back(intermediate);
+    }
+    return tokens;
+}
+unordered_set<string> Statistics::tokeniseKeyToSet(string input)
+{
+    unordered_set<string> tokens;
+    stringstream check1(input);
+    string intermediate;
+    while (getline(check1, intermediate, '|'))
+    {
+        tokens.insert(intermediate);
     }
     return tokens;
 }
@@ -303,6 +358,34 @@ unordered_set<string> Statistics::validateJoin(struct AndList *parseTree, char *
     unordered_set<string> relNamesSet;
     unordered_map<string, RelationInfo>::iterator relMapIter;
     unordered_set<string> matchedRelNamesSet;
+    //IF PARSETREE NULL
+    if (parseTree == NULL)
+    {
+        //lookup if all relations already joined in one partition
+        bool keyFound = false;
+        string key;
+        for (int i = 0; i < numToJoin; i++)
+        {
+
+            for (relMapIter = relationMap->begin(); relMapIter != relationMap->end(); relMapIter++)
+            {
+                unordered_set<string> tokens = tokeniseKeyToSet(relMapIter->first);
+                if (tokens.find(relNames[i]) != tokens.end())
+                {
+                    //found it in some set
+                    keyFound = true;
+                    break;
+                }
+            }
+            if (!keyFound)
+                return matchedRelNamesSet; // i.e. empty
+        }
+        //everything exists in relationMap
+        for (int i = 0; i < numToJoin; i++)
+            matchedRelNamesSet.insert(relNames[i]);
+
+        return matchedRelNamesSet;
+    }
     struct AndList *currentAnd = parseTree;
     struct OrList *currentOr = currentAnd->left;
 
@@ -332,7 +415,7 @@ unordered_set<string> Statistics::validateJoin(struct AndList *parseTree, char *
             string relMapKey = relMapIter->first;
 
             //get a delimited vector of strings, iterate and lookup
-            vector<string> tokens = tokeniseKey(relMapKey);
+            vector<string> tokens = tokeniseKeyToVec(relMapKey);
 
             //lookup all substrings of this relationMap key in relNamesSet
             for (int i = 0; i < tokens.size(); i++)
@@ -422,6 +505,7 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
     unordered_set<string>::iterator matchedRelSetIter;
     unordered_set<string> matchedRelSet;
     matchedRelSet = validateJoin(parseTree, relNames, numToJoin);
+
     if (parseTree == NULL)
     {
         if (numToJoin == 1)
@@ -429,7 +513,7 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
             //selection
             for (matchedRelSetIter = matchedRelSet.begin(); matchedRelSetIter != matchedRelSet.end(); matchedRelSetIter++)
             {
-                vector<string> tokens = tokeniseKey((*matchedRelSetIter));
+                vector<string> tokens = tokeniseKeyToVec((*matchedRelSetIter));
 
                 for (int i = 0; i < tokens.size(); i++)
                 {
@@ -449,7 +533,7 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
 
                 while (matchedRelSetIter != matchedRelSet.end())
                 {
-                    vector<string> tokens = tokeniseKey((*matchedRelSetIter));
+                    vector<string> tokens = tokeniseKeyToVec((*matchedRelSetIter));
                     bool matched = false;
                     for (int j = 0; j < tokens.size(); j++)
                     {
@@ -484,7 +568,7 @@ double Statistics::Estimate(struct AndList *parseTree, char **relNames, int numT
 
         while (matchedRelSetIter != matchedRelSet.end())
         {
-            vector<string> tokens = tokeniseKey((*matchedRelSetIter));
+            vector<string> tokens = tokeniseKeyToVec((*matchedRelSetIter));
             bool matched = false;
             for (int j = 0; j < tokens.size(); j++)
             {

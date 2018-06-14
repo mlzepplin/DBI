@@ -38,7 +38,9 @@ class Statistics
 
 	unordered_set<string> getRelNamesOfAttributes(struct AndList *parseTree, char *relNames[], int numToJoin);
 	string getRelationOfAtt(string attName, char *relNames[], int numToJoin);
-	vector<string> tokeniseKey(string input);
+	vector<string> tokeniseKeyToVec(string input);
+	unordered_set<string> tokeniseKeyToSet(string input);
+	int getNumTuplesOfRelation(char *relName);
 
 	//checks if the join set-subset conditions match, if all the attributes present in parseTree
 	//are also present in some relation from relNames
@@ -48,6 +50,10 @@ class Statistics
 	//respective relation, and returns the number of tuples of the containing relation
 	//NOTE:assumes that the attribute exists in at least one relation from relNames[]
 	int getNumTuples(string attName, char *relNames[], int numToJoin, int &numDistincts);
+	int getNumTuples(string relationName);
+
+	//getAll attributes in the stats object
+	vector<string> getAllAttsNames();
 };
 
 #endif

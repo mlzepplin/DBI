@@ -13,7 +13,7 @@ SelectFile::SelectFile()
 void *SelectFile::selectFileHelper()
 {
 	//NOTE: No need of using the numPages memory constraint
-	//as we are select is purely streaming and non-blocking
+	//as we are select is purely streaming and non-blocking , *(selOp), *(literal)
 	while (inFile->GetNext(*(buffer), *(selOp), *(literal)) == 1)
 	{
 		outPipe->Insert(buffer);
@@ -71,7 +71,6 @@ void *SelectPipe::selectPipeHelper()
 	ComparisonEngine comp;
 	while (inPipe->Remove(buffer))
 	{
-
 		if (comp.Compare(buffer, literal, selOp))
 		{
 			outPipe->Insert(buffer);
@@ -329,7 +328,6 @@ void Join::sortMergeJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 	{
 
 		int c = compEngine.Compare(&leftRecord, leftOrder, &rightRecord, rightOrder);
-
 		if (c == 0)
 		{ //found left and right records where left.att==right.att
 
@@ -391,17 +389,27 @@ void Join::blockNestedLoopJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 	// Writeout right table (ideally,should choose the smaller), to disk
 	HeapFile rightFile;
 	rightFile.Create("blockNestedLoopJoinTempFile.bin", NULL);
-
+	cout << "RIGHT PIPE RECS" << endl;
 	while (rightInPipe->Remove(&temp))
 	{
+		// temp.Print(rSchema);
 		rightFile.Add(temp);
 	}
-
+	cout << "LEFT PIPE RECS" << endl;
 	while (leftInPipe->Remove(&temp))
 	{
 		//write left pipe to buffer as much as possible
+		// temp.Print(lSchema);
 		while (joinMemBuffer->addRecord(temp))
-			;
+		{
+			if (leftInPipe->Remove(&temp) == 0)
+				break;
+		}
+		// cout << endl
+		// 	 << endl;
+		// cout << "joinMemBuffersize" << joinMemBuffer->size() << endl;
+		// cout << endl
+		// 	 << endl;
 		//join/cross the buffer load with all records from rightFile
 		while (rightFile.GetNext(rightRecord))
 		{
@@ -410,6 +418,7 @@ void Join::blockNestedLoopJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 
 				if (compEngine.Compare(joinMemBuffer->getRecord(i), &rightRecord, literal, selOp))
 				{
+
 					mergedRecord.atomicMerge(joinMemBuffer->getRecord(i), &rightRecord);
 					outPipe->Insert(&mergedRecord);
 				}
@@ -418,6 +427,7 @@ void Join::blockNestedLoopJoin(OrderMaker *leftOrder, OrderMaker *rightOrder)
 		rightFile.MoveFirst();
 		joinMemBuffer->clear();
 	}
+	cout << "joining done" << endl;
 	rightFile.Close();
 }
 
@@ -431,14 +441,14 @@ void *Join::joinHelper()
 	//an acceptable ordering for the given comparison
 	if (selOp->GetSortOrders(leftOrder, rightOrder))
 	{
-
+		cout << "sortmerge join" << endl;
 		sortMergeJoin(&leftOrder, &rightOrder);
 	}
 	else
 	{
+		cout << "blocknested join" << endl;
 		blockNestedLoopJoin(&leftOrder, &rightOrder);
 	}
-
 	outPipe->ShutDown();
 }
 
@@ -448,7 +458,7 @@ void *Join::joinStaticHelper(void *join)
 	j->joinHelper();
 }
 
-void Join::Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal)
+void Join::Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal, Schema &lSchema, Schema &rSchema)
 {
 	this->leftInPipe = &inPipeL;
 	this->rightInPipe = &inPipeR;
@@ -456,6 +466,8 @@ void Join::Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &
 	this->selOp = &selOp;
 	this->literal = &literal;
 	this->joinMemBuffer = new JoinMemBuffer(numPages);
+	this->lSchema = &lSchema;
+	this->rSchema = &rSchema;
 
 	int w = pthread_create(&thread, NULL, joinStaticHelper, (void *)this);
 	if (w)
@@ -525,7 +537,10 @@ bool JoinMemBuffer::addRecord(Record &rec)
 {
 	if (buffer.size() + 1 > maxSize)
 		return false;
-	buffer.push_back(&rec);
+	Record *pushMe;
+	pushMe = new Record();
+	pushMe->Consume(&rec);
+	buffer.push_back(pushMe);
 	return true;
 }
 Record *JoinMemBuffer::getRecord(int index)
@@ -538,5 +553,10 @@ int JoinMemBuffer::size()
 }
 void JoinMemBuffer::clear()
 {
+	for (int i = 0; i < buffer.size(); i++)
+	{
+		buffer[i] = NULL;
+		delete (buffer[i]);
+	}
 	buffer.clear();
 }

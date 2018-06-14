@@ -10,7 +10,7 @@
 
 class RelationalOp
 {
-  public:
+public:
 	// blocks the caller until the particular relational operator
 	// has run to completion
 	virtual void WaitUntilDone() = 0;
@@ -22,7 +22,7 @@ class RelationalOp
 class SelectFile : public RelationalOp
 {
 
-  private:
+private:
 	pthread_t thread;
 	int numPages;
 	DBFile *inFile;
@@ -31,7 +31,7 @@ class SelectFile : public RelationalOp
 	Record *literal;
 	Record *buffer;
 
-  public:
+public:
 	SelectFile();
 	void Run(DBFile &inFile, Pipe &outPipe, CNF &selOp, Record &literal);
 	static void *selectFileStaticHelper(void *selectFile);
@@ -43,7 +43,7 @@ class SelectFile : public RelationalOp
 class SelectPipe : public RelationalOp
 {
 
-  private:
+private:
 	pthread_t thread;
 	Pipe *inPipe;
 	Pipe *outPipe;
@@ -52,7 +52,7 @@ class SelectPipe : public RelationalOp
 	Record *buffer;
 	int numPages;
 
-  public:
+public:
 	SelectPipe();
 	void Run(Pipe &inPipe, Pipe &outPipe, CNF &selOp, Record &literal);
 	static void *selectPipeStaticHelper(void *selectPipe);
@@ -63,7 +63,7 @@ class SelectPipe : public RelationalOp
 
 class Project : public RelationalOp
 {
-  private:
+private:
 	pthread_t thread;
 	Pipe *inPipe;
 	Pipe *outPipe;
@@ -72,7 +72,7 @@ class Project : public RelationalOp
 	int numAttsOutput;
 	int numPages;
 
-  public:
+public:
 	void Run(Pipe &inPipe, Pipe &outPipe, int *keepMe, int numAttsInput, int numAttsOutput);
 	void WaitUntilDone();
 	void Use_n_Pages(int n);
@@ -81,11 +81,11 @@ class Project : public RelationalOp
 };
 class JoinMemBuffer
 {
-  private:
+private:
 	int maxSize;
 	vector<Record *> buffer;
 
-  public:
+public:
 	JoinMemBuffer(int runLength)
 	{
 		maxSize = PAGE_SIZE * runLength / sizeof(Record *);
@@ -98,7 +98,7 @@ class JoinMemBuffer
 };
 class Join : public RelationalOp
 {
-  private:
+private:
 	pthread_t thread;
 	int numPages;
 	Pipe *leftInPipe;
@@ -106,11 +106,13 @@ class Join : public RelationalOp
 	Pipe *outPipe;
 	CNF *selOp;
 	Record *literal;
+	Schema *lSchema;
+	Schema *rSchema;
 
 	JoinMemBuffer *joinMemBuffer;
 
-  public:
-	void Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);
+public:
+	void Run(Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal, Schema &lSchema, Schema &rSchema);
 	static void *joinStaticHelper(void *join);
 	void *joinHelper();
 	void sortMergeJoin(OrderMaker *leftOrder, OrderMaker *rightOrder);
@@ -121,14 +123,14 @@ class Join : public RelationalOp
 
 class DuplicateRemoval : public RelationalOp
 {
-  private:
+private:
 	pthread_t thread;
 	Pipe *inPipe;
 	Pipe *outPipe;
 	Schema *schema;
 	int numPages;
 
-  public:
+public:
 	void Run(Pipe &inPipe, Pipe &outPipe, Schema &mySchema);
 	static void *duplicateRemovalStaticHelper(void *duplicateRemoval);
 	void *duplicateRemovalHelper();
@@ -139,14 +141,14 @@ class DuplicateRemoval : public RelationalOp
 class Sum : public RelationalOp
 {
 
-  private:
+private:
 	pthread_t thread;
 	Pipe *inPipe;
 	Pipe *outPipe;
 	Function *computeMe;
 	int numPages;
 
-  public:
+public:
 	void Run(Pipe &inPipe, Pipe &outPipe, Function &computeMe);
 	static void *sumStaticHelper(void *sum);
 	void *sumHelper();
@@ -159,7 +161,7 @@ class Sum : public RelationalOp
 
 class GroupBy : public RelationalOp
 {
-  private:
+private:
 	pthread_t thread;
 	Pipe *inPipe;
 	Pipe *outPipe;
@@ -167,7 +169,7 @@ class GroupBy : public RelationalOp
 	OrderMaker *groupAtts;
 	int numPages;
 
-  public:
+public:
 	void Run(Pipe &inPipe, Pipe &outPipe, OrderMaker &groupAtts, Function &computeMe);
 	static void *groupbyStaticHelper(void *sum);
 	void *groupbyHelper();
@@ -180,14 +182,14 @@ class GroupBy : public RelationalOp
 
 class WriteOut : public RelationalOp
 {
-  private:
+private:
 	pthread_t thread;
 	Pipe *inPipe;
 	FILE *outputFile;
 	Schema *schema;
 	int numPages;
 
-  public:
+public:
 	void Run(Pipe &inPipe, FILE *outFile, Schema &mySchema);
 	static void *writeOutStaticHelper(void *writeOut);
 	void *writeOutHelper();
@@ -207,6 +209,8 @@ void Sum::calculateSum(Pipe *inPipe, Pipe *outPipe, Function *computeMe)
 	}
 	//create an instance of a Record that contains the calculated sum of the given function
 	Record sumRecord(sum);
+	cout << endl;
+	cout << "SUMSUMSUMSUMSUSM" << endl;
 	outPipe->Insert(&sumRecord);
 }
 

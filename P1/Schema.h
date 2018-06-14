@@ -49,11 +49,17 @@ class Schema
 	// this finds the type of the given attribute
 	Type FindType(const char *attName);
 
+	//added deep copy constructor
+	Schema(const Schema &sch);
+
 	// this reads the specification for the schema in from a file
 	Schema(const char *fName, const char *relName);
 
 	// this composes a schema instance in-memory
 	Schema(char *fName, int num_atts, Attribute *atts);
+
+	// compute schema based on aliasName
+	Schema(const char *fName, const char *relName, const char *aliasName);
 
 	// this constructs a sort order structure that can be used to
 	// place a lexicographic ordering on the records using this type of schema
